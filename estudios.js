@@ -20,13 +20,14 @@ const CAMPOS_PROT = [
   ["palabrasExcluir", "Palabras a resaltar en rojo al cribar (separadas por coma)", 2],
 ];
 const PROT_EJEMPLO = {
-  poblacion: "Población residente en Uruguay (cualquier edad).",
-  exposicion: "Consumo de agua potable (red pública OSE, pozos u otras fuentes) y sus contaminantes: microbiológicos, nitratos, arsénico, plomo, cianotoxinas, trihalometanos, sodio, agroquímicos…",
-  comparador: "Población no expuesta o con menor exposición, o niveles por debajo de la norma.",
-  desenlaces: "Cualquier desenlace en salud: enfermedades gastrointestinales, metahemoglobinemia, plombemia, cáncer, hipertensión, enfermedad renal, biomarcadores de exposición…",
-  disenos: "Estudios observacionales (cohortes, casos y controles, transversales, ecológicos), series de casos e informes de brotes.",
-  inclusion: "Estudios realizados en Uruguay.\nEvalúan agua de consumo humano.\nReportan al menos un desenlace en salud o un biomarcador de exposición.",
-  exclusion: "Estudios fuera de Uruguay.\nAgua recreativa, residual o de riego sin vínculo con el consumo.\nEstudios en animales o in vitro.\nEditoriales y revisiones narrativas (se usan para rastrear referencias).",
+  pregunta: "¿Cuáles son los efectos en la salud humana de la exposición a cianobacterias (cianotoxinas) y agrotóxicos presentes en el agua de consumo humano en Uruguay?",
+  poblacion: "Personas (cualquier edad) que viven en Uruguay y consumen agua de la canilla o de otras fuentes de agua para beber.",
+  exposicion: "Agua de consumo humano (red pública de OSE, pozos, aljibes u otras fuentes para beber) con cianobacterias o cianotoxinas (microcistinas, saxitoxinas, cilindrospermopsina, anatoxinas) o agrotóxicos (glifosato y AMPA, atrazina, 2,4-D, clorpirifos, endosulfán, imidacloprid, otros plaguicidas).",
+  comparador: "Personas no expuestas o con menor exposición, o niveles por debajo de la norma de agua potable.",
+  desenlaces: "Cualquier efecto en la salud humana: síntomas gastrointestinales, daño hepático, efectos neurológicos, cáncer, efectos reproductivos o en el desarrollo, intoxicaciones agudas, biomarcadores de exposición en personas.",
+  disenos: "Estudios observacionales (cohortes, casos y controles, transversales, ecológicos), series de casos, informes de brotes y estudios de evaluación de riesgo en salud humana.",
+  inclusion: "Estudios realizados en Uruguay.\nEvalúan agua de consumo humano (agua de canilla, red pública u otra fuente para beber).\nEvalúan exposición a cianobacterias/cianotoxinas o a agrotóxicos.\nReportan al menos un efecto en la salud humana o un biomarcador de exposición en personas.",
+  exclusion: "Estudios fuera de Uruguay.\nAgua recreativa (playas, balnearios, baños), agua residual o de riego sin relación con el agua para beber.\nSalud animal, estudios en animales o in vitro.\nEstudios solo ambientales, sin ningún resultado en salud humana.\nOtros contaminantes fuera del alcance de la revisión.\nEditoriales y revisiones narrativas (se usan para rastrear referencias).",
   herramientaSesgo: "ROBINS-E",
 };
 function renderProtocolo() {
@@ -101,8 +102,8 @@ const CAMPOS_EXT = [
   ["diseno", "Diseño del estudio", 1, "Transversal, cohorte, casos y controles, ecológico…"],
   ["poblacion", "Población", 2, "Quiénes, edad, dónde"], ["n", "Tamaño de muestra", 1, ""],
   ["periodo", "Período del estudio", 1, "Años de recolección de datos"],
-  ["fuente", "Fuente de agua", 1, "Red OSE, pozo, aljibe, agua embotellada…"],
-  ["contaminante", "Exposición / contaminante", 1, "Nitratos, arsénico, plomo…"],
+  ["fuente", "Fuente de agua", 1, "Agua de canilla (red OSE), pozo, aljibe…"],
+  ["contaminante", "Exposición / contaminante", 1, "Cianotoxina o agrotóxico, y cuál (microcistina, glifosato…)"],
   ["medicionExp", "Medición de la exposición", 2, "Cómo y dónde se midió"],
   ["desenlace", "Desenlace en salud", 1, ""], ["medicionDes", "Medición del desenlace", 2, ""],
   ["efecto", "Medida de efecto", 1, "OR, RR, diferencia de medias, prevalencia…"],

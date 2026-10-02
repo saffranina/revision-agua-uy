@@ -515,8 +515,8 @@ async function importarAhora() {
 
 /* ---------- Resaltado de palabras clave al cribar ---------- */
 const DEPARTAMENTOS = ["Artigas", "Canelones", "Cerro Largo", "Colonia", "Durazno", "Flores", "Florida", "Lavalleja", "Maldonado", "Montevideo", "Paysandú", "Río Negro", "Rivera", "Rocha", "Salto", "San José", "Soriano", "Tacuarembó", "Treinta y Tres"];
-const PAL_INCLUIR = "Uruguay, uruguayo, uruguaya, Montevideo, Canelones, Paysandú, Tacuarembó, Treinta y Tres, Cerro Largo, Maldonado, agua potable, agua de consumo, agua de bebida, drinking water, tap water, potable water, OSE, pozo, pozos, well water, groundwater, agua subterránea, nitrato, nitrate, arsénico, arsenic, plomo, lead, cianobacteria, cyanobacteria, microcistina, microcystin, trihalometano, salud, health";
-const PAL_EXCLUIR = "Argentina, Brasil, Brazil, Chile, Paraguay, México, ratas, ratones, rats, mice, in vitro, aguas residuales, wastewater, revisión narrativa, editorial";
+const PAL_INCLUIR = "Uruguay, uruguayo, uruguaya, Montevideo, Canelones, Paysandú, Tacuarembó, Treinta y Tres, Cerro Largo, Maldonado, agua potable, agua de consumo, agua de bebida, agua de canilla, agua de la canilla, agua corriente, red pública, drinking water, tap water, potable water, OSE, pozo, pozos, well water, cianobacteria, cianobacterias, cyanobacteria, cyanobacterial, cianotoxina, cianotoxinas, cyanotoxin, cyanotoxins, microcistina, microcistinas, microcystin, microcystins, saxitoxina, saxitoxin, cilindrospermopsina, cylindrospermopsin, anatoxina, anatoxin, floración, floraciones, bloom, blooms, agrotóxico, agrotóxicos, agroquímico, agroquímicos, plaguicida, plaguicidas, pesticida, pesticidas, pesticide, pesticides, herbicida, herbicide, glifosato, glyphosate, AMPA, atrazina, atrazine, 2,4-D, clorpirifos, chlorpyrifos, endosulfán, endosulfan, imidacloprid, salud, health, humanos, humans, niños, children, embarazadas, orina, urine, biomarcador, biomarker";
+const PAL_EXCLUIR = "Argentina, Brasil, Brazil, Chile, Paraguay, México, recreativa, recreativas, recreational, playa, playas, beach, beaches, balneario, bañistas, bathing, swimming, aguas residuales, wastewater, riego, irrigation, animal, animales, ganado, bovino, bovinos, cattle, ovinos, peces, fish, ratas, ratones, rats, mice, in vitro, revisión narrativa, editorial";
 const palabras = t => String(t || "").split(/[,;\n]/).map(x => x.trim()).filter(x => x.length > 1);
 function resaltar(texto) {
   let h = esc(texto);
@@ -535,7 +535,7 @@ function resaltar(texto) {
 }
 
 /* ---------- Cribado: artículo por artículo ---------- */
-const MOTIVOS = ["No es en Uruguay", "No evalúa agua de consumo", "Sin desenlace en salud", "Diseño no elegible", "No es un estudio original", "Texto completo no disponible"];
+const MOTIVOS = ["No es en Uruguay", "No es agua de consumo humano", "Agua recreativa", "No evalúa salud humana", "Salud animal o estudio en animales", "Contaminante fuera del alcance", "Diseño no elegible", "No es un estudio original"];
 let cribActual = null, cribHist = [], cribSaltados = new Set();
 function colaFase() {
   const fase = $("#c-fase").value, fb = $("#f-busq").value;
