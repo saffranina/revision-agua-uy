@@ -25,6 +25,11 @@ const store = {
 };
 
 let pdfAbierto = "", uruguayAuto = "", colaCrib = [];
+// Quién entró: administración y/o Revisor 1, 2 o 3 (cribado doble ciego)
+let rol = (() => { try { return JSON.parse(store.get("rol") || "null") } catch (e) { return null } })();
+let mias = new Map(), otroAvance = null, doble = false, ACU = null;
+const faseNum = () => $("#c-fase").value === "pend" ? 1 : 2;
+const claveDec = (codigo, fase) => codigo + "|" + fase;
 let B = [], R = [], H = [], clave = store.get("clave") || "", editB = null, editR = null, pdfFile = null, cargando = false;
 
 function toast(msg, ms = 2800) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => t.hidden = true, ms) }
@@ -67,6 +72,7 @@ function aplicar(j) {
   B = (j.busquedas || []).sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
   R = (j.referencias || []).map(r => ({ ...r, estadoK: estadoKey(r.estado) })).sort((a, b) => String(b.codigo).localeCompare(String(a.codigo)));
   H = j.historial || [];
+  ACU = j.acuerdo || null;
   renderAll();
 }
 // Llama al motor y traduce cada falla a un mensaje que diga qué revisar
@@ -92,19 +98,37 @@ async function api(accion, datos) {
 /* ---------- Modo edición ---------- */
 function setModo() {
   const on = !!clave;
+  if (!on) rol = null;
+  if (on && !rol) rol = { admin: true, revisor: "" };
   document.body.classList.toggle("editing", on);
-  $("#mode").textContent = on ? "✏️ Modo edición" : "🔒 Solo lectura";
+  document.body.classList.toggle("admin", on && rol.admin);
+  const quien = on ? [rol.revisor, rol.admin ? "Admin" : ""].filter(Boolean).join(" · ") : "";
+  $("#mode").textContent = on ? "✏️ " + quien : "🔒 Solo lectura";
   $("#mode").classList.toggle("on", on);
+  $("#crib-btn").hidden = !on || (!rol.admin && rol.revisor === "Revisor 3");
+}
+async function actualizarRol() {
+  if (!clave) return;
+  try {
+    const j = await api("probarClave", {});
+    rol = j.rol || { admin: true, revisor: "" }; // motor viejo: solo había administración
+    store.set("rol", JSON.stringify(rol)); setModo(); contarConflictos();
+  } catch (e) { if (e.message === "Clave incorrecta.") { clave = ""; store.set("clave", null); store.set("rol", null); setModo() } }
 }
 $("#mode").onclick = () => { $("#k-clave").value = ""; $("#k-salir").hidden = !clave; $("#dlg-k").showModal() };
 $("#form-k").onsubmit = async e => {
   e.preventDefault();
   const k = $("#k-clave").value; const prev = clave; clave = k;
-  try { await api("probarClave", {}); store.set("clave", k); $("#dlg-k").close(); toast("Modo edición activado") }
+  try {
+    const j = await api("probarClave", {});
+    rol = j.rol || { admin: true, revisor: "" };
+    store.set("clave", k); store.set("rol", JSON.stringify(rol)); $("#dlg-k").close();
+    toast("Entraste como " + [rol.revisor, rol.admin ? "administración" : ""].filter(Boolean).join(" y ")); contarConflictos();
+  }
   catch (err) { clave = prev; toast(err.message === "Clave incorrecta." ? "Clave incorrecta." : err.message, 9000) }
   setModo();
 };
-$("#k-salir").onclick = () => { clave = ""; store.set("clave", null); setModo(); $("#dlg-k").close(); toast("Ahora estás en solo lectura") };
+$("#k-salir").onclick = () => { clave = ""; store.set("clave", null); store.set("rol", null); setModo(); $("#dlg-k").close(); toast("Ahora estás en solo lectura") };
 
 /* ---------- Pestañas ---------- */
 document.querySelectorAll("nav.tabs button").forEach(b => b.onclick = () => show(b.dataset.tab));
@@ -194,7 +218,15 @@ function renderP() {
     ${box("Excluidos a texto completo", extc, true, Object.keys(reasons).length ? list(reasons) : "")}
     <div class="stage">Incluidos</div>
     ${box("Estudios incluidos en la revisión", inc)}
+    ${acuerdoHtml()}
     ${ident > R.length ? `<p class="note">Hay ${(ident - R.length).toLocaleString("es-UY")} resultados de búsqueda que todavía no están cargados como referencias.</p>` : ""}`;
+}
+// Kappa de Cohen con la escala de Landis y Koch
+function acuerdoHtml() {
+  if (!ACU || !((ACU.fase1 && ACU.fase1.n) || (ACU.fase2 && ACU.fase2.n))) return "";
+  const nivel = k => k < 0 ? "pobre" : k <= .2 ? "leve" : k <= .4 ? "aceptable" : k <= .6 ? "moderado" : k <= .8 ? "considerable" : "casi perfecto";
+  const fila = (t, a) => a && a.n ? `<div class="box"><span>${t}<ul class="reasons"><li>${a.n} artículos cribados por los dos</li><li>Coincidieron en el ${Math.round(a.acuerdo * 100)}% · ${a.conflictos} conflicto${a.conflictos === 1 ? "" : "s"}</li><li>Acuerdo ${nivel(a.kappa)}</li></ul></span><b>κ ${a.kappa.toFixed(2).replace(".", ",")}</b></div>` : "";
+  return `<div class="stage">Acuerdo entre revisores (kappa de Cohen)</div>${fila("Fase 1 · título y resumen", ACU.fase1)}${fila("Fase 2 · texto completo", ACU.fase2)}`;
 }
 function renderAll() {
   renderB(); renderR(); renderP();
@@ -207,7 +239,7 @@ function renderAll() {
 
 /* ---------- Diálogos ---------- */
 function lock(form) {
-  const ro = !clave;
+  const ro = !clave || (form.id === "form-b" && !rol.admin);
   form.querySelectorAll("input,select,textarea").forEach(i => { if (i.type !== "file") i.disabled = ro });
   form.querySelector('button[type="submit"]').hidden = ro;
 }
@@ -219,7 +251,7 @@ function openB(id) {
   $("#dlg-b-title").textContent = id ? "Búsqueda" : "Nueva búsqueda";
   $("#b-base").value = d.base || BASES[0]; $("#b-fecha").value = d.fecha || new Date().toLocaleDateString("sv");
   $("#b-cadena").value = d.cadena || ""; $("#b-filtros").value = d.filtros || ""; $("#b-n").value = d.n ?? "";
-  $("#b-campos").value = d.campos || ""; $("#b-notas").value = d.notas || ""; $("#b-del").hidden = !id || !clave;
+  $("#b-campos").value = d.campos || ""; $("#b-notas").value = d.notas || ""; $("#b-del").hidden = !id || !clave || !rol.admin;
   const hist = id ? [{ fecha: d.creado, accion: "Registrada" }, ...(d.actualizado && d.actualizado !== d.creado ? [{ fecha: d.actualizado, accion: "Última edición" }] : [])] : [];
   $("#b-hist").innerHTML = histHtml(hist); $("#b-hist").hidden = !id;
   $("#bl-url").value = ""; $("#imp-file").value = ""; $("#imp-res").hidden = true; importando = null;
@@ -231,7 +263,7 @@ function openR(codigo) {
   editR = codigo; const d = codigo ? R.find(r => r.codigo === codigo) : {};
   $("#dlg-r-title").textContent = codigo ? `Referencia ${codigo}` : "Nueva referencia";
   for (const k of ["titulo", "autores", "anio", "revista", "doi", "link", "resumen", "motivo", "tema", "notas"]) $("#r-" + k).value = d[k] ?? "";
-  $("#r-busqueda").value = d.busqueda || ""; $("#r-estado").value = d.estadoK || "pend"; $("#r-del").hidden = !codigo || !clave;
+  $("#r-busqueda").value = d.busqueda || ""; $("#r-estado").value = d.estadoK || "pend"; $("#r-del").hidden = !codigo || !clave || !rol.admin;
   $("#r-drive").value = ""; pdfFile = null; $("#r-pdf").value = "";
   $("#auto-in").value = ""; pdfAbierto = ""; uruguayAuto = d.uruguay || ""; $("#oa-box").hidden = true;
   mostrarUy(uruguayAuto ? { texto: uruguayAuto, ok: !/^No /.test(uruguayAuto) } : null);
@@ -241,7 +273,10 @@ function openR(codigo) {
   const extra = (dupl.copias[codigo] || []).map(d => ({ fecha: d.creado, accion: "También apareció en " + (d.base || "otra búsqueda"), detalle: d.codigo }))
     .concat(dupl.de[codigo] ? [{ fecha: "", accion: "Duplicado de " + dupl.de[codigo], detalle: "" }] : []);
   $("#r-hist").innerHTML = histHtml(hist.concat(extra)); $("#r-hist").hidden = !hist.length && !extra.length;
-  lock($("#form-r")); $("#dlg-r").showModal();
+  lock($("#form-r"));
+  // El estado lo deciden los revisores en el cribado doble ciego
+  if (clave && !rol.admin) { $("#r-estado").disabled = true; $("#r-motivo").disabled = true }
+  $("#dlg-r").showModal();
 }
 function renderPdf(d) {
   const box = $("#pdf-cur");
@@ -427,22 +462,26 @@ const MOTIVOS = ["No es en Uruguay", "No evalúa agua de consumo", "Sin desenlac
 let cribActual = null, cribHist = [], cribSaltados = new Set();
 function colaFase() {
   const fase = $("#c-fase").value, fb = $("#f-busq").value;
-  return R.filter(r => r.estadoK === fase && (!fb || r.busqueda === fb) && !cribSaltados.has(r.codigo))
+  return R.filter(r => r.estadoK === fase && (!fb || r.busqueda === fb) && !cribSaltados.has(r.codigo) && !(doble && mias.has(claveDec(r.codigo, faseNum()))))
     .sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)));
 }
 function renderCrib() {
   const fase = $("#c-fase").value, cola = colaFase();
-  const total = R.filter(r => r.estadoK === fase && (!$("#f-busq").value || r.busqueda === $("#f-busq").value)).length;
-  if (!cribActual || cribActual.estadoK !== fase || cribSaltados.has(cribActual.codigo)) cribActual = cola[0] || null;
+  const total = doble ? cola.length + cribSaltados.size : R.filter(r => r.estadoK === fase && (!$("#f-busq").value || r.busqueda === $("#f-busq").value)).length;
+  if (!cribActual || cribActual.estadoK !== fase || cribSaltados.has(cribActual.codigo) || (doble && mias.has(claveDec(cribActual.codigo, faseNum())))) cribActual = cola[0] || null;
   else cribActual = R.find(r => r.codigo === cribActual.codigo) || cola[0] || null;
   $("#c-excl").hidden = true; $("#c-undo").hidden = !cribHist.length;
-  $("#c-prog").textContent = total ? `Quedan ${total} ${fase === "pend" ? "pendientes de cribado" : "a texto completo"}${cribSaltados.size ? ` · ${cribSaltados.size} saltados` : ""}` : "";
+  const hechas = [...mias.keys()].filter(k => k.endsWith("|" + faseNum())).length;
+  const otro = doble && otroAvance && otroAvance.revisor ? ` · ${otroAvance.revisor} lleva ${otroAvance["fase" + faseNum()]}` : "";
+  $("#c-prog").textContent = (total ? `Te quedan ${total}${cribSaltados.size ? ` (${cribSaltados.size} saltados)` : ""}` : "") + (doble ? ` · Llevas ${hechas}${otro}` : "");
+  $("#c-quien").textContent = doble ? `Cribando como ${rol.revisor} · doble ciego: no ves las decisiones del otro revisor` : "Cribado directo (administración): cada decisión cambia el estado enseguida";
   $("#c-si").textContent = fase === "pend" ? "✓ Pasa" : "✓ Incluir";
   $("#c-dup").hidden = fase !== "pend";
   const card = $("#c-card");
   if (!cribActual) {
     $("#c-btns").hidden = true;
     card.innerHTML = `<div class="empty">${cribSaltados.size ? `No quedan más, salvo ${cribSaltados.size} que saltaste. <button type="button" class="btn ghost" id="c-reset">Volver a ver los saltados</button>`
+      : doble ? `¡Terminaste esta fase! 🎉 Cuando ${otroAvance && otroAvance.revisor ? otroAvance.revisor : "el otro revisor"} también termine, los desacuerdos aparecen en «⚖️ Conflictos».`
       : fase === "pend" ? "¡No quedan artículos pendientes de cribado! 🎉" : "No hay artículos esperando la lectura a texto completo."}</div>`;
     const rs = $("#c-reset"); if (rs) rs.onclick = () => { cribSaltados.clear(); renderCrib() };
     return;
@@ -458,8 +497,18 @@ function renderCrib() {
   $("#c-editar").onclick = e => { e.preventDefault(); $("#dlg-c").close(); openR(r.codigo) };
   card.scrollTop = 0;
 }
-function abrirCrib() {
+async function abrirCrib() {
   cribSaltados.clear(); cribHist = []; cribActual = null;
+  doble = !!(rol && (rol.revisor === "Revisor 1" || rol.revisor === "Revisor 2"));
+  mias = new Map(); otroAvance = null;
+  if (doble) {
+    const btn = $("#crib-btn"); btn.disabled = true; btn.textContent = "Cargando…";
+    try {
+      const j = await api("misDecisiones", {});
+      j.mias.forEach(m => mias.set(claveDec(m.codigo, m.fase), m)); otroAvance = j.otro;
+    } catch (e) { toast("No pude cargar tus decisiones: " + e.message, 6000); return }
+    finally { btn.disabled = false; btn.textContent = "▶ Cribar" }
+  }
   $("#c-fase").value = R.some(r => r.estadoK === "pend") || !R.some(r => r.estadoK === "ft") ? "pend" : "ft";
   $("#c-motivos").innerHTML = MOTIVOS.map(m => `<button type="button">${esc(m)}</button>`).join("");
   $("#c-motivos").querySelectorAll("button").forEach(b => b.onclick = () => decidir(fase2Excl(), b.textContent));
@@ -468,6 +517,13 @@ function abrirCrib() {
 const fase2Excl = () => $("#c-fase").value === "pend" ? "exta" : "extc";
 function decidir(estado, motivo) {
   const r = cribActual; if (!r) return;
+  if (doble) {
+    const fase = faseNum(), decision = { ft: "si", inc: "si", exta: "no", extc: "no", dup: "dup" }[estado];
+    mias.set(claveDec(r.codigo, fase), { codigo: r.codigo, fase: String(fase), decision, motivo: motivo || "" });
+    cribHist.push({ doble: true, codigo: r.codigo, fase });
+    colaCrib.push({ doble: true, codigo: r.codigo, fase, decision, motivo: motivo || "" }); procesarCola();
+    cribActual = null; renderCrib(); return;
+  }
   cribHist.push({ codigo: r.codigo, estadoK: r.estadoK, estado: r.estado, motivo: r.motivo });
   r.estadoK = estado; r.estado = estadoLabel(estado); r.motivo = motivo || "";
   colaCrib.push({ ...r }); procesarCola();
@@ -478,6 +534,14 @@ async function procesarCola() {
   while (colaCrib.length) {
     actualizarGuardado();
     const r = colaCrib[0];
+    if (r.doble) {
+      try { await api("decidir", { codigo: r.codigo, fase: r.fase, decision: r.decision, motivo: r.motivo }); colaCrib.shift() }
+      catch (e) {
+        if (/ya no está en esta fase|Solo el Revisor|Clave incorrecta/.test(e.message)) { colaCrib.shift(); toast(e.message, 6000) }
+        else { toast("No se pudo guardar " + r.codigo + ": " + e.message + ". Reintento en unos segundos.", 5000); await new Promise(ok => setTimeout(ok, 5000)) }
+      }
+      continue;
+    }
     try {
       await api("guardarReferencia", { codigo: r.codigo, titulo: r.titulo, autores: r.autores, anio: r.anio, revista: r.revista, doi: r.doi,
         link: r.link, resumen: r.resumen, busqueda: r.busqueda, estado: r.estadoK, motivo: r.motivo, tema: r.tema, notas: r.notas, uruguay: r.uruguay });
@@ -487,7 +551,7 @@ async function procesarCola() {
       await new Promise(ok => setTimeout(ok, 5000));
     }
   }
-  procesarCola.activo = false; actualizarGuardado(); cargar(true);
+  procesarCola.activo = false; actualizarGuardado(); await cargar(true); contarConflictos();
 }
 function actualizarGuardado() { $("#c-guard").textContent = colaCrib.length ? `Guardando ${colaCrib.length}…` : "✓ Todo guardado" }
 $("#crib-btn").onclick = abrirCrib;
@@ -501,6 +565,11 @@ $("#c-dup").onclick = () => decidir("dup");
 $("#c-skip").onclick = () => { if (cribActual) { cribSaltados.add(cribActual.codigo); cribActual = null; renderCrib() } };
 function deshacer() {
   const h = cribHist.pop(); if (!h) return;
+  if (h.doble) {
+    mias.delete(claveDec(h.codigo, h.fase));
+    colaCrib.push({ doble: true, codigo: h.codigo, fase: h.fase, decision: "" }); procesarCola();
+    cribActual = R.find(x => x.codigo === h.codigo) || null; renderCrib(); return;
+  }
   const r = R.find(x => x.codigo === h.codigo); if (!r) return;
   Object.assign(r, { estadoK: h.estadoK, estado: h.estado, motivo: h.motivo });
   colaCrib.push({ ...r }); procesarCola();
@@ -517,6 +586,43 @@ $("#dlg-c").addEventListener("keydown", e => {
   else return;
   e.preventDefault();
 });
+
+/* ---------- Conflictos: desacuerdos entre Revisor 1 y Revisor 2 ---------- */
+let CONF = [];
+async function contarConflictos() {
+  if (!clave) return;
+  try { CONF = (await api("conflictos", {})).conflictos || [] } catch (e) { CONF = [] }
+  $("#conf-btn").textContent = `⚖️ Conflictos${CONF.length ? ` (${CONF.length})` : ""}`;
+  if ($("#dlg-x").open) renderConflictos();
+}
+function renderConflictos() {
+  const el = $("#x-list");
+  if (!CONF.length) { el.innerHTML = `<div class="empty">No hay conflictos pendientes. Aparecen acá cuando los dos revisores decidieron distinto sobre un artículo.</div>`; return }
+  const tercero = rol && rol.revisor === "Revisor 3";
+  el.innerHTML = CONF.map((c, i) => {
+    const r = R.find(x => x.codigo === c.codigo) || { titulo: c.codigo };
+    const op = d => `${esc(d.texto)}${d.motivo ? " · " + esc(d.motivo) : ""}`;
+    return `<div class="xcard" data-i="${i}">
+      <div class="meta">${esc(c.codigo)} · Fase ${c.fase} (${c.fase === 1 ? "título y resumen" : "texto completo"})</div>
+      <b>${esc(r.titulo)}</b>
+      ${r.resumen ? `<details><summary class="note">Ver resumen</summary><div class="abs">${esc(r.resumen)}</div></details>` : ""}
+      <div class="xops"><span><b>Revisor 1:</b> ${op(c.r1)}</span><span><b>Revisor 2:</b> ${op(c.r2)}</span></div>
+      <label>Cómo se resuelve<select class="x-met"><option value="consenso"${tercero ? "" : " selected"}>Consenso entre Revisor 1 y Revisor 2</option><option value="tercero"${tercero ? " selected" : ""}>Decisión del Revisor 3</option></select></label>
+      <input class="x-mot" list="motivos" placeholder="Motivo (si se excluye)">
+      <div class="bar"><button type="button" class="btn cok" data-d="si">✓ ${c.fase === 1 ? "Pasa" : "Incluir"}</button><button type="button" class="btn danger" data-d="no">✗ Excluir</button>${c.fase === 1 ? '<button type="button" class="btn ghost" data-d="dup">Duplicado</button>' : ""}</div>
+    </div>`;
+  }).join("");
+  el.querySelectorAll(".xcard").forEach(card => card.querySelectorAll("button[data-d]").forEach(b => b.onclick = async () => {
+    const c = CONF[card.dataset.i], decision = b.dataset.d, motivo = card.querySelector(".x-mot").value.trim();
+    if (decision === "no" && !motivo) { toast("Escribe o elige el motivo de exclusión."); card.querySelector(".x-mot").focus(); return }
+    card.querySelectorAll("button").forEach(x => x.disabled = true);
+    try {
+      await api("resolver", { codigo: c.codigo, fase: c.fase, decision, motivo, metodo: card.querySelector(".x-met").value });
+      toast(c.codigo + " resuelto"); await cargar(true); await contarConflictos();
+    } catch (e) { toast("No se pudo resolver: " + e.message, 6000); card.querySelectorAll("button").forEach(x => x.disabled = false) }
+  }));
+}
+$("#conf-btn").onclick = async () => { renderConflictos(); $("#dlg-x").showModal(); await contarConflictos() };
 
 $("#add-b").onclick = () => openB(null);
 $("#add-r").onclick = () => openR(null);
@@ -597,6 +703,7 @@ document.querySelectorAll("[data-exp]").forEach(b => b.onclick = () => {
 
 /* ---------- Inicio ---------- */
 setModo();
+actualizarRol();
 try { const c = JSON.parse(store.get("cache") || "null"); if (c) aplicar(c); else renderAll() } catch (e) { renderAll() }
 cargar();
 document.addEventListener("visibilitychange", () => { if (!document.hidden) cargar(true) });

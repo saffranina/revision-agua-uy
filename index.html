@@ -94,6 +94,10 @@ dialog .actions .left{margin-right:auto}
 .mode.on{color:var(--ok);border-color:var(--ok)}
 .status{font-size:.82rem;color:var(--muted);margin-top:6px}
 body:not(.editing) .edit-only{display:none!important}
+body:not(.admin) .admin-only{display:none!important}
+.xcard{display:grid;gap:8px;border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--surface)}
+.xops{display:grid;gap:4px;background:var(--accent-soft);border-radius:8px;padding:8px 10px;font-size:.92rem}
+.xcard .abs{white-space:pre-wrap;line-height:1.5;font-size:.92rem;margin-top:6px}
 details summary{cursor:pointer}
 .autobox{display:grid;gap:6px;background:var(--accent-soft);border-radius:8px;padding:10px 12px}
 .autobox .lbl{font-size:.85rem;color:var(--muted);font-weight:600}
@@ -140,13 +144,14 @@ dialog.crib{width:min(760px,calc(100vw - 16px));max-height:calc(100vh - 16px)}
   </nav>
 
   <section class="view" id="v-busquedas">
-    <div class="bar"><h2 class="grow">Búsquedas realizadas</h2><button class="btn edit-only" id="add-b">+ Nueva búsqueda</button></div>
+    <div class="bar"><h2 class="grow">Búsquedas realizadas</h2><button class="btn admin-only" id="add-b">+ Nueva búsqueda</button></div>
     <div class="list" id="list-b"><div class="empty">Cargando búsquedas…</div></div>
   </section>
 
   <section class="view" id="v-referencias" hidden>
     <div class="bar"><h2 class="grow">Referencias</h2>
       <button class="btn edit-only" id="crib-btn">▶ Cribar</button>
+      <button class="btn ghost edit-only" id="conf-btn">⚖️ Conflictos</button>
       <button class="btn ghost edit-only" id="add-r">+ Agregar a mano</button></div>
     <div class="bar">
       <input class="grow" id="f-text" type="search" placeholder="Buscar por código, título, autor, DOI o nota">
@@ -188,7 +193,7 @@ dialog.crib{width:min(760px,calc(100vw - 16px));max-height:calc(100vh - 16px)}
 
 <dialog id="dlg-b"><form id="form-b">
   <h2 id="dlg-b-title">Nueva búsqueda</h2>
-  <div class="autobox edit-only" id="imp-box">
+  <div class="autobox admin-only" id="imp-box">
     <span class="lbl">Completar solo</span>
     <div class="bar">
       <input class="grow" id="bl-url" type="url" inputmode="url" placeholder="Pega el link de la página de resultados" autocomplete="off">
@@ -292,6 +297,7 @@ dialog.crib{width:min(760px,calc(100vw - 16px));max-height:calc(100vh - 16px)}
     </select>
     <button type="button" class="btn ghost" id="c-cerrar">Cerrar</button>
   </div>
+  <span class="note" id="c-quien"></span>
   <div class="cprog"><span id="c-prog"></span><span><button type="button" class="btn ghost" id="c-undo" style="padding:3px 10px" hidden>↩ Deshacer</button> <span id="c-guard"></span></span></div>
   <div id="c-card" class="ccard"></div>
   <div id="c-excl" class="cexcl" hidden>
@@ -308,11 +314,17 @@ dialog.crib{width:min(760px,calc(100vw - 16px));max-height:calc(100vh - 16px)}
   <span class="note ckeys">Teclado: <b>S</b> sí · <b>N</b> excluir · <b>D</b> duplicado · <b>→</b> saltar · <b>←</b> anterior</span>
 </div></dialog>
 
+<dialog id="dlg-x" class="crib"><div class="cwrap">
+  <div class="bar"><h2 class="grow">⚖️ Conflictos</h2><button type="button" class="btn ghost" data-close>Cerrar</button></div>
+  <span class="note">Artículos en los que el Revisor 1 y el Revisor 2 decidieron distinto. Recién acá se ven las dos decisiones. Se resuelve por consenso entre los dos o por decisión del Revisor 3, y queda registrado cómo.</span>
+  <div id="x-list" class="list"></div>
+</div></dialog>
+
 <div class="toast" id="toast" hidden></div>
 
-<script src="config.js?v=9"></script>
-<script src="autocompletar.js?v=9"></script>
-<script src="importar.js?v=9"></script>
-<script src="app.js?v=9"></script>
+<script src="config.js?v=10"></script>
+<script src="autocompletar.js?v=10"></script>
+<script src="importar.js?v=10"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>

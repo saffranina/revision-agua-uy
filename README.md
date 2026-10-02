@@ -61,6 +61,25 @@ En el repositorio: **Settings → Pages → Source: Deploy from a branch → Bra
 
 En la página toca **🔒 Solo lectura**, escribe tu clave y listo. Queda guardada en ese dispositivo (hazlo una vez en el celular y otra en la compu).
 
+## Cribado doble ciego (Revisor 1, 2 y 3)
+
+En `Codigo.gs`, además de `CLAVE` (administración), cada revisor tiene su clave:
+
+```js
+const REVISORES = {
+  'Revisor 1': 'clave-del-revisor-1',
+  'Revisor 2': 'clave-del-revisor-2',
+  'Revisor 3': 'clave-del-revisor-3',
+};
+```
+
+- **Administración** (`CLAVE`): registra búsquedas, importa, edita y borra. Puede ser la misma clave que la del Revisor 1.
+- **Revisor 1 y Revisor 2**: criban a ciegas las dos fases. Cada uno ve solo sus decisiones y cuánto avanzó el otro, nunca qué decidió.
+- **Revisor 3**: no criba; resuelve conflictos.
+- Si los dos coinciden, el artículo avanza solo. Si no, aparece en **⚖️ Conflictos** (solo cuando los dos decidieron) y se resuelve por **consenso entre Revisor 1 y 2** o por **decisión del Revisor 3**; queda registrado cuál.
+- Las decisiones individuales se guardan en la hoja *Decisiones* y **no** se muestran en la página pública. En la pestaña PRISMA se publica solo el acuerdo (kappa de Cohen).
+- Cada revisor entra en la página con «🔒 Solo lectura» y su clave. Pasa cada clave en privado.
+
 ## Si cambias el código de Apps Script
 
 Después de editar `Codigo.gs`: **Implementar → Administrar implementaciones → ✏️ → Versión: Nueva versión → Implementar**. La URL no cambia.

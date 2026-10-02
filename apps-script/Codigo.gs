@@ -7,11 +7,21 @@
  *  - registra solas las fechas y el historial de cada cambio de estado,
  *  - guarda los PDF en Drive con un nombre automático.
  *
- * Lo único que tienes que cambiar es la CLAVE de abajo.
+ * Lo único que tienes que cambiar son las CLAVES de abajo.
  */
 
-// Clave para poder editar desde la página. Cámbiala por una tuya.
+// Clave de administración: registrar búsquedas, importar, editar y borrar.
 const CLAVE = 'cambia-esta-clave';
+
+// Claves de cada revisor para el cribado doble ciego. Cada revisor entra
+// con la suya y no ve las decisiones del otro. El Revisor 3 desempata.
+// Si dejas una vacía (''), ese revisor queda desactivado.
+// Puedes usar para el Revisor 1 la misma clave que la de administración.
+const REVISORES = {
+  'Revisor 1': '',
+  'Revisor 2': '',
+  'Revisor 3': '',
+};
 
 // Planilla donde se guardan los datos.
 const PLANILLA = '1vYzfLeBfaEk6mMVLodGAxhOadvLE8UeEpc02mqaDPsE';
@@ -55,12 +65,31 @@ const HOJAS = {
   Historial: [
     ['fecha', 'Fecha y hora'], ['codigo', 'Código'], ['accion', 'Acción'], ['detalle', 'Detalle'],
   ],
+  // Decisiones de cada revisor (privadas: la página pública no las muestra)
+  Decisiones: [
+    ['fecha', 'Fecha y hora'], ['codigo', 'Código'], ['fase', 'Fase'], ['revisor', 'Revisor'],
+    ['decision', 'Decisión'], ['motivo', 'Motivo'], ['metodo', 'Cómo se resolvió'],
+  ],
 };
+const PRIVADAS = ['Decisiones'];
+
+// Fase 1 = título y resumen; fase 2 = texto completo
+const FASE_ESTADO = { 1: 'pend', 2: 'ft' };
+const RESULTADO = { 1: { si: 'ft', no: 'exta', dup: 'dup' }, 2: { si: 'inc', no: 'extc' } };
+const DECISION_TXT = { si: 'Sí', no: 'Excluir', dup: 'Duplicado' };
 
 /* ---------- Entrada web ---------- */
 
 function doGet() {
-  return json_({ ok: true, ...leerTodo_() });
+  return json_({ ok: true, ...leerTodo_(), acuerdo: acuerdo_() });
+}
+
+// Quién es el que entra según la clave
+function rol_(clave) {
+  const valida = (c) => c && !/^cambia/.test(c);
+  const admin = valida(CLAVE) && clave === CLAVE;
+  const revisor = Object.keys(REVISORES).find((k) => valida(REVISORES[k]) && REVISORES[k] === clave) || '';
+  return { admin, revisor };
 }
 
 function doPost(e) {
@@ -70,17 +99,24 @@ function doPost(e) {
   } catch (err) {
     return json_({ ok: false, error: 'Pedido inválido.' });
   }
-  if (pedido.clave !== CLAVE) return json_({ ok: false, error: 'Clave incorrecta.' });
+  const rol = rol_(pedido.clave);
+  if (!rol.admin && !rol.revisor) return json_({ ok: false, error: 'Clave incorrecta.' });
+  const soloAdmin = ['guardarBusqueda', 'borrarBusqueda', 'borrarReferencia', 'importarReferencias'];
+  if (soloAdmin.includes(pedido.accion) && !rol.admin) return json_({ ok: false, error: 'Esto lo hace solo quien administra.' });
 
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
     const d = pedido.datos || {};
     switch (pedido.accion) {
-      case 'probarClave': return json_({ ok: true });
+      case 'probarClave': return json_({ ok: true, rol });
+      case 'decidir': return json_({ ok: true, ...decidir_(rol, d) });
+      case 'misDecisiones': return json_({ ok: true, ...misDecisiones_(rol) });
+      case 'conflictos': return json_({ ok: true, conflictos: conflictos_() });
+      case 'resolver': return json_({ ok: true, ...resolver_(rol, d) });
       case 'guardarBusqueda': return json_({ ok: true, id: guardarBusqueda_(d) });
       case 'borrarBusqueda': borrarFila_('Busquedas', 'id', d.id); return json_({ ok: true });
-      case 'guardarReferencia': return json_({ ok: true, ...guardarReferencia_(d) });
+      case 'guardarReferencia': return json_({ ok: true, ...guardarReferencia_(d, rol) });
       case 'importarReferencias': return json_({ ok: true, ...importarReferencias_(d) });
       case 'traerUrl': return json_({ ok: true, ...traerUrl_(d.url) });
       case 'borrarReferencia':
@@ -115,13 +151,15 @@ function guardarBusqueda_(d) {
 
 /* ---------- Referencias ---------- */
 
-function guardarReferencia_(d) {
+function guardarReferencia_(d, rol) {
   const hoja = hoja_('Referencias');
   const ahora = ahora_();
   const fila = d.codigo ? buscarFila_(hoja, 'codigo', d.codigo) : -1;
   const previo = fila > 0 ? leerFila_(hoja, fila) : {};
   const nueva = fila < 0;
   const codigo = previo.codigo || siguienteCodigo_(hoja);
+  // Los revisores no cambian el estado a mano: eso sale del cribado doble ciego
+  if (rol && !rol.admin) d.estado = nueva ? 'pend' : estadoKey_(previo.estado);
   const estado = ESTADOS[d.estado] ? d.estado : 'pend';
   const estadoTxt = ESTADOS[estado];
   const cambioEstado = nueva || previo.estado !== estadoTxt;
@@ -228,6 +266,134 @@ function traerUrl_(url) {
   return { status: r.getResponseCode(), texto };
 }
 
+/* ---------- Cribado doble ciego ---------- */
+
+function estadoKey_(texto) {
+  return Object.keys(ESTADOS).find((k) => ESTADOS[k] === texto) || 'pend';
+}
+
+function decisiones_() {
+  const hoja = hoja_('Decisiones');
+  const filas = hoja.getLastRow() - 1;
+  if (filas < 1) return [];
+  return hoja.getRange(2, 1, filas, HOJAS.Decisiones.length).getDisplayValues()
+    .map((v, i) => ({ ...objeto_('Decisiones', v), fila: i + 2 }));
+}
+
+// Un revisor decide sobre un artículo (decision vacía = deshacer)
+function decidir_(rol, d) {
+  if (!rol.revisor || rol.revisor === 'Revisor 3') throw new Error('Solo el Revisor 1 y el Revisor 2 criban.');
+  const fase = String(d.fase) === '2' ? 2 : 1;
+  const hr = hoja_('Referencias');
+  const fr = buscarFila_(hr, 'codigo', d.codigo);
+  if (fr < 0) throw new Error('No existe la referencia ' + d.codigo + '.');
+  const ref = leerFila_(hr, fr);
+  if (estadoKey_(ref.estado) !== FASE_ESTADO[fase]) throw new Error(d.codigo + ' ya no está en esta fase (se decidió por acuerdo o lo cambió administración).');
+  const hoja = hoja_('Decisiones');
+  const mia = decisiones_().find((x) => x.codigo === d.codigo && x.fase === String(fase) && x.revisor === rol.revisor);
+  if (!d.decision) {
+    if (mia) hoja.deleteRow(mia.fila);
+    return { codigo: d.codigo };
+  }
+  if (!RESULTADO[fase][d.decision]) throw new Error('Decisión inválida.');
+  escribirFila_(hoja, mia ? mia.fila : -1, {
+    fecha: ahora_(), codigo: d.codigo, fase: String(fase), revisor: rol.revisor,
+    decision: d.decision, motivo: d.motivo || '', metodo: '',
+  });
+  return { codigo: d.codigo, ...evaluar_(d.codigo, fase) };
+}
+
+// Si los dos revisores ya decidieron y coinciden, se aplica solo
+function evaluar_(codigo, fase) {
+  const ds = decisiones_().filter((x) => x.codigo === codigo && x.fase === String(fase));
+  if (ds.some((x) => x.revisor === 'Resolución')) return {};
+  const r1 = ds.find((x) => x.revisor === 'Revisor 1'), r2 = ds.find((x) => x.revisor === 'Revisor 2');
+  if (!r1 || !r2) return { estado: 'esperando' };
+  if (r1.decision !== r2.decision) return { estado: 'conflicto' };
+  const motivo = [...new Set([r1.motivo, r2.motivo].filter(Boolean))].join(' / ');
+  aplicarEstado_(codigo, RESULTADO[fase][r1.decision], motivo, 'acuerdo Revisor 1 y Revisor 2');
+  return { estado: 'acuerdo' };
+}
+
+function aplicarEstado_(codigo, nuevo, motivo, como) {
+  const hoja = hoja_('Referencias');
+  const fila = buscarFila_(hoja, 'codigo', codigo);
+  if (fila < 0) return;
+  const r = leerFila_(hoja, fila), ahora = ahora_();
+  const antes = r.estado;
+  r.estado = ESTADOS[nuevo];
+  r.motivo = nuevo === 'exta' || nuevo === 'extc' ? motivo : r.motivo;
+  r.fechaCribado = r.fechaCribado || ahora;
+  r.fechaEstado = ahora;
+  r.actualizado = ahora;
+  escribirFila_(hoja, fila, r);
+  historial_(codigo, 'Cambio de estado', antes + ' → ' + r.estado + ' (' + como + ')');
+}
+
+// Lo que decidió este revisor y cuánto avanzó el otro (sin mostrar sus decisiones)
+function misDecisiones_(rol) {
+  const ds = decisiones_();
+  const otro = rol.revisor === 'Revisor 1' ? 'Revisor 2' : rol.revisor === 'Revisor 2' ? 'Revisor 1' : '';
+  return {
+    rol,
+    mias: ds.filter((x) => x.revisor === rol.revisor).map(({ codigo, fase, decision, motivo }) => ({ codigo, fase, decision, motivo })),
+    otro: { revisor: otro, fase1: ds.filter((x) => x.revisor === otro && x.fase === '1').length, fase2: ds.filter((x) => x.revisor === otro && x.fase === '2').length },
+  };
+}
+
+// Desacuerdos: solo se muestran cuando los dos ya decidieron
+function conflictos_() {
+  const ds = decisiones_(), refs = {};
+  hojaObjetos_('Referencias').forEach((r) => { refs[r.codigo] = estadoKey_(r.estado); });
+  const grupos = {};
+  ds.forEach((x) => { (grupos[x.codigo + '|' + x.fase] = grupos[x.codigo + '|' + x.fase] || []).push(x); });
+  return Object.values(grupos).map((g) => {
+    const r1 = g.find((x) => x.revisor === 'Revisor 1'), r2 = g.find((x) => x.revisor === 'Revisor 2');
+    if (!r1 || !r2 || r1.decision === r2.decision || g.some((x) => x.revisor === 'Resolución')) return null;
+    if (refs[r1.codigo] !== FASE_ESTADO[r1.fase]) return null;
+    const v = (x) => ({ decision: x.decision, texto: DECISION_TXT[x.decision], motivo: x.motivo });
+    return { codigo: r1.codigo, fase: Number(r1.fase), r1: v(r1), r2: v(r2) };
+  }).filter(Boolean);
+}
+
+function resolver_(rol, d) {
+  const fase = String(d.fase) === '2' ? 2 : 1;
+  if (!RESULTADO[fase][d.decision]) throw new Error('Decisión inválida.');
+  const metodo = d.metodo === 'tercero' ? 'Decisión del Revisor 3' : 'Consenso entre Revisor 1 y Revisor 2';
+  if (d.metodo === 'tercero' && rol.revisor !== 'Revisor 3' && !rol.admin) throw new Error('Esta opción la usa el Revisor 3.');
+  if (!conflictos_().some((c) => c.codigo === d.codigo && c.fase === fase)) throw new Error('Ese conflicto ya no está pendiente.');
+  escribirFila_(hoja_('Decisiones'), -1, {
+    fecha: ahora_(), codigo: d.codigo, fase: String(fase), revisor: 'Resolución',
+    decision: d.decision, motivo: d.motivo || '', metodo: metodo + ' (registró: ' + (rol.revisor || 'administración') + ')',
+  });
+  aplicarEstado_(d.codigo, RESULTADO[fase][d.decision], d.motivo || '', metodo);
+  return { codigo: d.codigo };
+}
+
+// Acuerdo entre revisores (kappa de Cohen) por fase: solo números, sin decisiones individuales
+function acuerdo_() {
+  const ds = decisiones_(), out = {};
+  [1, 2].forEach((fase) => {
+    const por = {};
+    ds.filter((x) => x.fase === String(fase)).forEach((x) => { (por[x.codigo] = por[x.codigo] || {})[x.revisor] = x.decision; });
+    const pares = Object.values(por).filter((p) => p['Revisor 1'] && p['Revisor 2']).map((p) => [p['Revisor 1'], p['Revisor 2']]);
+    const n = pares.length;
+    if (!n) { out['fase' + fase] = { n: 0 }; return; }
+    const iguales = pares.filter(([a, b]) => a === b).length;
+    const cats = [...new Set(pares.flat())];
+    const pe = cats.reduce((s, c) => s + (pares.filter(([a]) => a === c).length / n) * (pares.filter(([, b]) => b === c).length / n), 0);
+    const po = iguales / n;
+    out['fase' + fase] = { n, acuerdo: po, kappa: pe === 1 ? 1 : (po - pe) / (1 - pe), conflictos: n - iguales };
+  });
+  return out;
+}
+
+function hojaObjetos_(nombre) {
+  const hoja = hoja_(nombre);
+  const filas = hoja.getLastRow() - 1;
+  return filas > 0 ? hoja.getRange(2, 1, filas, HOJAS[nombre].length).getDisplayValues().map((v) => objeto_(nombre, v)) : [];
+}
+
 function siguienteCodigo_(hoja) {
   const filas = hoja.getLastRow() - 1;
   let max = 0;
@@ -253,7 +419,7 @@ function nombrePdf_(r) {
 
 function leerTodo_() {
   const out = {};
-  Object.keys(HOJAS).forEach((nombre) => {
+  Object.keys(HOJAS).filter((n) => !PRIVADAS.includes(n)).forEach((nombre) => {
     const hoja = hoja_(nombre);
     const filas = hoja.getLastRow() - 1;
     out[nombre.toLowerCase()] = filas > 0
