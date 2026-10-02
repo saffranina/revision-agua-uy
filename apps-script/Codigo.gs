@@ -13,6 +13,9 @@
 // Clave para poder editar desde la página. Cámbiala por una tuya.
 const CLAVE = 'cambia-esta-clave';
 
+// Planilla donde se guardan los datos.
+const PLANILLA = '1vYzfLeBfaEk6mMVLodGAxhOadvLE8UeEpc02mqaDPsE';
+
 // Carpeta de Drive donde se guardan los PDF ("2 - PDFs ordenados").
 const CARPETA_PDFS = '17g4e9xXyF5fdgXgBNzjjNy9WmBICtEdW';
 
@@ -214,7 +217,7 @@ function leerTodo_() {
 }
 
 function hoja_(nombre) {
-  const ss = SpreadsheetApp.getActive();
+  const ss = SpreadsheetApp.openById(PLANILLA);
   let hoja = ss.getSheetByName(nombre);
   const cols = HOJAS[nombre];
   if (!hoja) {
@@ -276,7 +279,7 @@ function json_(obj) {
 /** Ejecuta esta función una vez desde el editor para crear las hojas y dar permisos. */
 function prepararPlanilla() {
   Object.keys(HOJAS).forEach(hoja_);
-  const sobrante = SpreadsheetApp.getActive().getSheetByName('Hoja 1') || SpreadsheetApp.getActive().getSheetByName('Sheet1');
-  if (sobrante && SpreadsheetApp.getActive().getSheets().length > 1) SpreadsheetApp.getActive().deleteSheet(sobrante);
+  const sobrante = SpreadsheetApp.openById(PLANILLA).getSheetByName('Hoja 1') || SpreadsheetApp.openById(PLANILLA).getSheetByName('Sheet1');
+  if (sobrante && SpreadsheetApp.openById(PLANILLA).getSheets().length > 1) SpreadsheetApp.openById(PLANILLA).deleteSheet(sobrante);
   DriveApp.getFolderById(CARPETA_PDFS).getName();
 }
