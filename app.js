@@ -516,6 +516,7 @@ async function importarAhora() {
 /* ---------- Resaltado de palabras clave al cribar ---------- */
 const DEPARTAMENTOS = ["Artigas", "Canelones", "Cerro Largo", "Colonia", "Durazno", "Flores", "Florida", "Lavalleja", "Maldonado", "Montevideo", "Paysandú", "Río Negro", "Rivera", "Rocha", "Salto", "San José", "Soriano", "Tacuarembó", "Treinta y Tres"];
 const PAL_INCLUIR = "Uruguay, uruguayo, uruguaya, Montevideo, Canelones, Paysandú, Tacuarembó, Treinta y Tres, Cerro Largo, Maldonado, agua potable, agua de consumo, agua de bebida, agua de canilla, agua de la canilla, agua corriente, red pública, drinking water, tap water, potable water, OSE, pozo, pozos, well water, cianobacteria, cianobacterias, cyanobacteria, cyanobacterial, cianotoxina, cianotoxinas, cyanotoxin, cyanotoxins, microcistina, microcistinas, microcystin, microcystins, saxitoxina, saxitoxin, cilindrospermopsina, cylindrospermopsin, anatoxina, anatoxin, floración, floraciones, bloom, blooms, agrotóxico, agrotóxicos, agroquímico, agroquímicos, plaguicida, plaguicidas, pesticida, pesticidas, pesticide, pesticides, herbicida, herbicide, glifosato, glyphosate, AMPA, atrazina, atrazine, 2,4-D, clorpirifos, chlorpyrifos, endosulfán, endosulfan, imidacloprid, salud, health, humanos, humans, niños, children, embarazadas, orina, urine, biomarcador, biomarker";
+const PAL_SECUNDARIAS = "trihalometano, trihalometanos, trihalomethane, trihalomethanes, THM, cloroformo, chloroform, subproductos de la desinfección, disinfection byproducts, sodio, sodium, cloruro, cloruros, chloride, salinidad, salinity, crisis hídrica, nitrato, nitratos, nitrate, nitrates, nitrito, nitrite, metahemoglobinemia, methemoglobinemia, arsénico, arsenic, plomo, lead, plombemia, metales pesados, heavy metals, microplástico, microplásticos, microplastic, microplastics";
 const PAL_EXCLUIR = "Argentina, Brasil, Brazil, Chile, Paraguay, México, recreativa, recreativas, recreational, playa, playas, beach, beaches, balneario, bañistas, bathing, swimming, aguas residuales, wastewater, riego, irrigation, animal, animales, ganado, bovino, bovinos, cattle, ovinos, peces, fish, ratas, ratones, rats, mice, in vitro, revisión narrativa, editorial";
 const palabras = t => String(t || "").split(/[,;\n]/).map(x => x.trim()).filter(x => x.length > 1);
 function resaltar(texto) {
@@ -530,6 +531,7 @@ function resaltar(texto) {
     h = h.split(/(<[^>]+>)/).map((t, i) => i % 2 ? t : t.replace(re, (m, a, w) => `${a}<mark class="${clase}">${w}</mark>`)).join("");
   };
   marcar(PROT.palabrasIncluir || PAL_INCLUIR, "mi");
+  marcar(PROT.palabrasSecundarias || PAL_SECUNDARIAS, "ms");
   marcar(PROT.palabrasExcluir || PAL_EXCLUIR, "mx");
   return h;
 }

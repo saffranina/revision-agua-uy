@@ -1,8 +1,9 @@
-# Cadenas de búsqueda: cianobacterias y agrotóxicos en el agua de consumo humano y salud humana en Uruguay
+# Cadenas de búsqueda: contaminantes del agua de consumo humano y salud humana en Uruguay
 
 **Alcance**
 - **Agua:** de consumo humano, la que sale de la canilla (red pública de OSE) u otras fuentes para beber (pozos, aljibes). **No** agua recreativa.
-- **Exposición:** cianobacterias y cianotoxinas, y agrotóxicos (plaguicidas). *(Hay un tercer contaminante pendiente de definir: cuando se defina, se agrega como otro bloque con `OR` dentro de la exposición.)*
+- **Exposición de interés principal:** cianobacterias y cianotoxinas, y agrotóxicos (plaguicidas).
+- **Exposición de interés secundario:** trihalometanos (subproductos de la desinfección), sodio y cloruros (crisis hídrica de 2023), nitratos, metales pesados (arsénico, plomo) y microplásticos. Se buscan aparte (ver al final), así las búsquedas principales quedan limpias y se puede reportar cada una por separado.
 - **Desenlace:** salud **humana** (no animal).
 - **Lugar:** solo estudios realizados en Uruguay.
 
@@ -105,6 +106,33 @@ Cadenas cortas (revisa las primeras 200 o 300 entradas y anota cuántas):
 "agua potable" cianobacterias Uruguay salud
 "agua potable" agrotóxicos OR plaguicidas Uruguay salud
 "drinking water" cyanobacteria OR pesticides Uruguay health
+```
+
+## Búsquedas de interés secundario
+
+Mismo bloque de **agua de consumo** y mismo bloque de **Uruguay** que arriba; solo cambia el bloque de exposición. Regístralas como búsquedas separadas en la página (en notas: «interés secundario»).
+
+**PubMed (bloque de exposición):**
+```
+("Trihalomethanes"[Mesh] OR "Disinfection"[Mesh] OR trihalomethane*[tiab] OR "disinfection by-product*"[tiab]
+ OR "disinfection byproduct*"[tiab] OR chloroform[tiab]
+ OR "Sodium"[Mesh] OR "Chlorides"[Mesh] OR sodium[tiab] OR chloride*[tiab] OR salinity[tiab] OR "water crisis"[tiab]
+ OR "Nitrates"[Mesh] OR nitrate*[tiab] OR nitrite*[tiab] OR "Methemoglobinemia"[Mesh]
+ OR "Metals, Heavy"[Mesh] OR "Arsenic"[Mesh] OR "Lead"[Mesh] OR arsenic[tiab] OR "lead"[tiab] OR "heavy metal*"[tiab]
+ OR "Microplastics"[Mesh] OR microplastic*[tiab])
+```
+
+**BVS / LILACS (bloque de exposición):**
+```
+(mh:Trihalometanos OR tw:trihalometano* OR tw:"subproductos de la desinfección" OR tw:sodio OR tw:cloruro*
+ OR tw:salinidad OR tw:"crisis hídrica" OR mh:Nitratos OR tw:nitrato* OR tw:metahemoglobinemia
+ OR mh:Arsénico OR mh:Plomo OR tw:arsénico OR tw:plomo OR tw:"metales pesados" OR tw:microplástico*)
+```
+
+**Scopus / Web of Science (bloque de exposición):**
+```
+(trihalomethane* OR "disinfection by-product*" OR chloroform OR sodium OR chloride* OR salinity OR "water crisis"
+ OR nitrate* OR nitrite* OR methemoglobinemia OR arsenic OR "lead" OR "heavy metal*" OR microplastic*)
 ```
 
 ## Repositorios y literatura gris uruguaya (otros métodos)

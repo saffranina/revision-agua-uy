@@ -1,6 +1,6 @@
 # Latindex, revistas uruguayas y literatura no indexada
 
-> **Alcance actualizado:** la revisión es sobre **cianobacterias/cianotoxinas y agrotóxicos en el agua de consumo humano (agua de canilla) y sus efectos en la salud humana**, en Uruguay. De los candidatos de abajo, los de **cianobacterias** son los más cercanos (aunque varios son ambientales o de agua recreativa y se van a excluir si no tienen resultados en salud humana). Los de **arsénico, plomo y nitratos** quedan fuera del alcance, salvo que alguno de esos sea el tercer contaminante que falta definir.
+> **Alcance actualizado:** la revisión es sobre **contaminantes del agua de consumo humano (agua de canilla) y sus efectos en la salud humana**, en Uruguay. **Interés principal:** cianobacterias/cianotoxinas y agrotóxicos. **Interés secundario:** trihalometanos, sodio y cloruros, nitratos, metales pesados (arsénico, plomo) y microplásticos. Los candidatos de abajo sobre arsénico, plomo, nitratos y la crisis hídrica de 2023 entran como interés secundario. Varios de cianobacterias son ambientales o de agua recreativa y se van a excluir si no tienen resultados en salud humana.
 
 Búsqueda exploratoria hecha con Claude el 2 de octubre de 2026. **Nada de esto está cribado todavía**: son candidatos para cargar en el registro, verificar los datos (autores, año, DOI) y cribar según los criterios del protocolo.
 

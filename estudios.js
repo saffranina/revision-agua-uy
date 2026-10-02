@@ -16,24 +16,25 @@ const CAMPOS_PROT = [
   ["periodo", "Período e idiomas", 1],
   ["prospero", "Registro en PROSPERO (número)", 1],
   ["herramientaSesgo", "Herramienta de riesgo de sesgo", 1],
-  ["palabrasIncluir", "Palabras a resaltar en verde al cribar (separadas por coma)", 3],
+  ["palabrasIncluir", "Palabras a resaltar en verde al cribar: interés principal (separadas por coma)", 3],
+  ["palabrasSecundarias", "Palabras a resaltar en azul al cribar: interés secundario (separadas por coma)", 2],
   ["palabrasExcluir", "Palabras a resaltar en rojo al cribar (separadas por coma)", 2],
 ];
 const PROT_EJEMPLO = {
-  pregunta: "¿Cuáles son los efectos en la salud humana de la exposición a cianobacterias (cianotoxinas) y agrotóxicos presentes en el agua de consumo humano en Uruguay?",
+  pregunta: "¿Cuáles son los efectos en la salud humana de la exposición a cianobacterias (cianotoxinas) y agrotóxicos presentes en el agua de consumo humano en Uruguay? De forma secundaria: ¿y de la exposición a trihalometanos, sodio y cloruros, nitratos, metales pesados y microplásticos?",
   poblacion: "Personas (cualquier edad) que viven en Uruguay y consumen agua de la canilla o de otras fuentes de agua para beber.",
-  exposicion: "Agua de consumo humano (red pública de OSE, pozos, aljibes u otras fuentes para beber) con cianobacterias o cianotoxinas (microcistinas, saxitoxinas, cilindrospermopsina, anatoxinas) o agrotóxicos (glifosato y AMPA, atrazina, 2,4-D, clorpirifos, endosulfán, imidacloprid, otros plaguicidas).",
+  exposicion: "Agua de consumo humano (red pública de OSE, pozos, aljibes u otras fuentes para beber) con cianobacterias o cianotoxinas (microcistinas, saxitoxinas, cilindrospermopsina, anatoxinas) o agrotóxicos (glifosato y AMPA, atrazina, 2,4-D, clorpirifos, endosulfán, imidacloprid, otros plaguicidas). Interés secundario: trihalometanos y otros subproductos de la desinfección, sodio y cloruros (crisis hídrica de 2023), nitratos y nitritos, metales pesados (arsénico, plomo) y microplásticos.",
   comparador: "Personas no expuestas o con menor exposición, o niveles por debajo de la norma de agua potable.",
   desenlaces: "Cualquier efecto en la salud humana: síntomas gastrointestinales, daño hepático, efectos neurológicos, cáncer, efectos reproductivos o en el desarrollo, intoxicaciones agudas, biomarcadores de exposición en personas.",
   disenos: "Estudios observacionales (cohortes, casos y controles, transversales, ecológicos), series de casos, informes de brotes y estudios de evaluación de riesgo en salud humana.",
-  inclusion: "Estudios realizados en Uruguay.\nEvalúan agua de consumo humano (agua de canilla, red pública u otra fuente para beber).\nEvalúan exposición a cianobacterias/cianotoxinas o a agrotóxicos.\nReportan al menos un efecto en la salud humana o un biomarcador de exposición en personas.",
-  exclusion: "Estudios fuera de Uruguay.\nAgua recreativa (playas, balnearios, baños), agua residual o de riego sin relación con el agua para beber.\nSalud animal, estudios en animales o in vitro.\nEstudios solo ambientales, sin ningún resultado en salud humana.\nOtros contaminantes fuera del alcance de la revisión.\nEditoriales y revisiones narrativas (se usan para rastrear referencias).",
+  inclusion: "Estudios realizados en Uruguay.\nEvalúan agua de consumo humano (agua de canilla, red pública u otra fuente para beber).\nEvalúan exposición a cianobacterias/cianotoxinas o a agrotóxicos (interés principal), o a trihalometanos, sodio y cloruros, nitratos, metales pesados o microplásticos (interés secundario).\nReportan al menos un efecto en la salud humana o un biomarcador de exposición en personas.",
+  exclusion: "Estudios fuera de Uruguay.\nAgua recreativa (playas, balnearios, baños), agua residual o de riego sin relación con el agua para beber.\nSalud animal, estudios en animales o in vitro.\nEstudios solo ambientales, sin ningún resultado en salud humana.\nContaminantes que no son de interés principal ni secundario (por ejemplo, contaminación microbiológica).\nEditoriales y revisiones narrativas (se usan para rastrear referencias).",
   herramientaSesgo: "ROBINS-E",
 };
 function renderProtocolo() {
   const editable = !!(clave && rol && rol.admin);
   $("#prot-form").innerHTML = CAMPOS_PROT.map(([k, l, filas]) => {
-    const v = PROT[k] ?? (k === "palabrasIncluir" ? PAL_INCLUIR : k === "palabrasExcluir" ? PAL_EXCLUIR : "");
+    const v = PROT[k] ?? ({ palabrasIncluir: PAL_INCLUIR, palabrasSecundarias: PAL_SECUNDARIAS, palabrasExcluir: PAL_EXCLUIR }[k] || "");
     const ph = PROT_EJEMPLO[k] ? ` placeholder="Ejemplo: ${esc(PROT_EJEMPLO[k])}"` : "";
     return `<label>${esc(l)}${filas > 1 ? `<textarea id="p-${k}" rows="${filas}"${ph}${editable ? "" : " disabled"}>${esc(v)}</textarea>` : `<input id="p-${k}" value="${esc(v)}"${ph}${editable ? "" : " disabled"}>`}</label>`;
   }).join("");
