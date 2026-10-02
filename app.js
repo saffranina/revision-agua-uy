@@ -48,14 +48,19 @@ async function cargar(silencioso) {
   if (cargando) return; cargando = true;
   if (!silencioso) $("#status").textContent = "Actualizando…";
   try {
-    const r = await fetch(window.API_URL, { cache: "no-store" });
-    const j = await r.json();
+    let r;
+    try { r = await fetch(window.API_URL, { cache: "no-store" }) } catch (e) { throw new Error("no se pudo llegar al motor de Google") }
+    const texto = await r.text();
+    let j;
+    try { j = JSON.parse(texto) } catch (e) {
+      throw new Error(/accounts\.google|ServiceLogin|signin/i.test(texto) ? "el motor pide iniciar sesión (revisa «Quién tiene acceso» en Apps Script)" : `respuesta inesperada del motor (código ${r.status})`);
+    }
     if (!j.ok) throw new Error(j.error);
     aplicar(j);
     store.set("cache", JSON.stringify(j));
     $("#status").textContent = "Actualizado " + new Date().toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit" });
   } catch (e) {
-    $("#status").textContent = "Sin conexión con la planilla. Mostrando lo último guardado en este dispositivo.";
+    $("#status").textContent = `Sin conexión con la planilla: ${e.message}.`;
   } finally { cargando = false }
 }
 function aplicar(j) {
@@ -64,9 +69,22 @@ function aplicar(j) {
   H = j.historial || [];
   renderAll();
 }
+// Llama al motor y traduce cada falla a un mensaje que diga qué revisar
 async function api(accion, datos) {
-  const r = await fetch(window.API_URL, { method: "POST", body: JSON.stringify({ clave, accion, datos }) });
-  const j = await r.json();
+  if (!window.API_URL) throw new Error("La página todavía no tiene la dirección del motor. Espera unos minutos y recarga.");
+  let r, texto;
+  try {
+    r = await fetch(window.API_URL, { method: "POST", body: JSON.stringify({ clave, accion, datos }) });
+    texto = await r.text();
+  } catch (e) {
+    throw new Error("No se pudo llegar al motor de Google (red bloqueada o acceso de la implementación). En Apps Script, «Quién tiene acceso» tiene que ser «Cualquier usuario».");
+  }
+  let j;
+  try { j = JSON.parse(texto) } catch (e) {
+    if (/accounts\.google|ServiceLogin|signin/i.test(texto)) throw new Error("El motor pide iniciar sesión: en Apps Script, «Quién tiene acceso» tiene que ser «Cualquier usuario» y hay que implementar una versión nueva.");
+    if (/no se encontr|not found|unable to open|no se pudo abrir/i.test(texto)) throw new Error("Google no encontró el motor: revisa que la URL sea la de la implementación actual.");
+    throw new Error(`El motor respondió algo inesperado (código ${r.status}). Mándale una captura a Claude.`);
+  }
   if (!j.ok) throw new Error(j.error || "Error desconocido");
   return j;
 }
@@ -83,7 +101,7 @@ $("#form-k").onsubmit = async e => {
   e.preventDefault();
   const k = $("#k-clave").value; const prev = clave; clave = k;
   try { await api("probarClave", {}); store.set("clave", k); $("#dlg-k").close(); toast("Modo edición activado") }
-  catch (err) { clave = prev; toast(err.message === "Clave incorrecta." ? "Clave incorrecta." : "No se pudo conectar con la planilla.") }
+  catch (err) { clave = prev; toast(err.message === "Clave incorrecta." ? "Clave incorrecta." : err.message, 9000) }
   setModo();
 };
 $("#k-salir").onclick = () => { clave = ""; store.set("clave", null); setModo(); $("#dlg-k").close(); toast("Ahora estás en solo lectura") };
