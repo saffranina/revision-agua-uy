@@ -198,6 +198,7 @@ function openB(id) {
   $("#b-campos").value = d.campos || ""; $("#b-notas").value = d.notas || ""; $("#b-del").hidden = !id || !clave;
   const hist = id ? [{ fecha: d.creado, accion: "Registrada" }, ...(d.actualizado && d.actualizado !== d.creado ? [{ fecha: d.actualizado, accion: "Última edición" }] : [])] : [];
   $("#b-hist").innerHTML = histHtml(hist); $("#b-hist").hidden = !id;
+  $("#imp-box").hidden = !id; $("#imp-file").value = ""; $("#imp-res").hidden = true; importando = null;
   lock($("#form-b")); $("#dlg-b").showModal();
 }
 function openR(codigo) {
@@ -279,6 +280,56 @@ $("#auto-btn").onclick = async () => {
   } finally { btn.disabled = false; btn.textContent = "Completar" }
 };
 $("#auto-in").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("#auto-btn").click() } });
+
+/* ---------- Importar resultados (RIS, PubMed, XML) ---------- */
+let importando = null;
+$("#imp-file").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  const res = $("#imp-res"); res.hidden = false;
+  let leido;
+  try { leido = Importar.leer(await f.text()) }
+  catch (err) { res.innerHTML = `<span class="uycheck warn">No reconozco el formato de «${esc(f.name)}». Usa el formato PubMed, RIS o XML.</span>`; importando = null; return }
+  const refs = Importar.marcarDuplicados(leido.refs, R).map(r => {
+    const c = Autocompletar.chequeoUruguay(r);
+    return { ...r, uruguay: textoUy(c), esUy: c.afUy || c.menciona };
+  });
+  const dups = refs.filter(r => r.duplicadoDe).length, uy = refs.filter(r => r.esUy).length;
+  importando = { archivo: f.name, refs };
+  const nombres = { ris: "RIS", pubmed: "PubMed", xml: "XML de PubMed" };
+  res.innerHTML = `<span><b>${refs.length}</b> artículos en el archivo (${nombres[leido.formato]}).</span>
+    <span>${refs.length - dups} nuevos · ${dups} duplicados${dups ? " (ya estaban en el registro o repetidos en el archivo)" : ""}.</span>
+    <span>🇺🇾 ${uy} con autores de Uruguay o que mencionan Uruguay.</span>
+    ${dups ? `<label><input type="checkbox" id="imp-dups" checked> Registrar los duplicados con estado «Duplicado» (cuentan en PRISMA)</label>` : ""}
+    <button type="button" class="btn" id="imp-go">Importar ${refs.length - dups} artículo${refs.length - dups === 1 ? "" : "s"}</button>`;
+  const chk = $("#imp-dups"), go = $("#imp-go");
+  const etiqueta = () => { const n = refs.length - (chk && !chk.checked ? dups : 0); go.textContent = `Importar ${n} artículo${n === 1 ? "" : "s"}` };
+  if (chk) { chk.onchange = etiqueta; etiqueta() }
+  if (!refs.length) go.hidden = true;
+  go.onclick = importar;
+};
+async function importar() {
+  if (!importando) return;
+  const conDups = !$("#imp-dups") || $("#imp-dups").checked;
+  const lista = importando.refs.filter(r => conDups || !r.duplicadoDe).map(r => ({
+    titulo: r.titulo, autores: r.autores, anio: r.anio, revista: r.revista, doi: r.doi, link: r.link, resumen: r.resumen,
+    uruguay: r.uruguay, estado: r.duplicadoDe ? "dup" : "pend", notas: r.duplicadoDe ? "Duplicado de " + r.duplicadoDe : "",
+  }));
+  const go = $("#imp-go"); go.disabled = true;
+  let hechos = 0;
+  try {
+    for (let i = 0; i < lista.length; i += 50) {
+      go.textContent = `Importando… ${hechos} de ${lista.length}`;
+      await api("importarReferencias", { busqueda: editB, archivo: importando.archivo, referencias: lista.slice(i, i + 50) });
+      hechos += Math.min(50, lista.length - i);
+    }
+    $("#dlg-b").close(); toast(`Importé ${hechos} artículo${hechos === 1 ? "" : "s"}. Están en Referencias como «Pendiente de cribado».`, 5000);
+    importando = null; await cargar(true); show("referencias");
+  } catch (e) {
+    go.disabled = false; go.textContent = "Reintentar";
+    toast(e.message === "Acción desconocida." ? "Falta actualizar el código de Apps Script para poder importar (ver README: «Si cambias el código de Apps Script»)."
+      : `Se importaron ${hechos} de ${lista.length}. Error: ${e.message}`, 9000);
+  }
+}
 
 $("#add-b").onclick = () => openB(null);
 $("#add-r").onclick = () => openR(null);

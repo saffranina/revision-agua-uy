@@ -81,6 +81,7 @@ function doPost(e) {
       case 'guardarBusqueda': return json_({ ok: true, id: guardarBusqueda_(d) });
       case 'borrarBusqueda': borrarFila_('Busquedas', 'id', d.id); return json_({ ok: true });
       case 'guardarReferencia': return json_({ ok: true, ...guardarReferencia_(d) });
+      case 'importarReferencias': return json_({ ok: true, ...importarReferencias_(d) });
       case 'borrarReferencia':
         borrarFila_('Referencias', 'codigo', d.codigo);
         historial_(d.codigo, 'Eliminada', '');
@@ -178,6 +179,42 @@ function guardarReferencia_(d) {
   if (nueva) historial_(codigo, 'Registrada', estadoTxt);
   else if (cambioEstado) historial_(codigo, 'Cambio de estado', previo.estado + ' → ' + estadoTxt);
   return { codigo, aviso };
+}
+
+// Importa muchas referencias de una vez (desde un archivo RIS, PubMed o XML).
+// Escribe todas las filas juntas para que sea rápido.
+function importarReferencias_(d) {
+  const hoja = hoja_('Referencias');
+  const ahora = ahora_();
+  let base = '', fechaBusqueda = '';
+  if (d.busqueda) {
+    const hb = hoja_('Busquedas');
+    const fb = buscarFila_(hb, 'id', d.busqueda);
+    if (fb > 0) { const b = leerFila_(hb, fb); base = b.base; fechaBusqueda = b.fecha; }
+  }
+  let n = parseInt(siguienteCodigo_(hoja).slice(1), 10);
+  const cols = HOJAS.Referencias;
+  const filas = [], hist = [], codigos = [];
+  (d.referencias || []).forEach((r) => {
+    const codigo = 'R' + String(n++).padStart(3, '0');
+    const estado = ESTADOS[r.estado] ? r.estado : 'pend';
+    const reg = {
+      codigo, titulo: r.titulo, autores: r.autores, anio: r.anio || '', revista: r.revista,
+      doi: r.doi, link: r.link, resumen: r.resumen, busqueda: d.busqueda || '', base, fechaBusqueda,
+      estado: ESTADOS[estado], motivo: r.motivo || '', tema: '', uruguay: r.uruguay || '',
+      creado: ahora, fechaCribado: estado !== 'pend' ? ahora : '', fechaEstado: ahora,
+      pdf: '', pdfNombre: '', pdfFecha: '', notas: r.notas || '', actualizado: ahora,
+    };
+    filas.push(cols.map(([k]) => (reg[k] === undefined || reg[k] === null ? '' : String(reg[k]))));
+    hist.push([ahora, codigo, 'Importada', (d.archivo || 'archivo') + ' · ' + ESTADOS[estado]]);
+    codigos.push(codigo);
+  });
+  if (filas.length) {
+    hoja.getRange(hoja.getLastRow() + 1, 1, filas.length, cols.length).setNumberFormat('@').setValues(filas);
+    const hh = hoja_('Historial');
+    hh.getRange(hh.getLastRow() + 1, 1, hist.length, 4).setNumberFormat('@').setValues(hist);
+  }
+  return { codigos };
 }
 
 function siguienteCodigo_(hoja) {

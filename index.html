@@ -180,6 +180,12 @@ details summary{cursor:pointer}
     <label>Campos buscados<input id="b-campos" placeholder="Título/resumen, MeSH, todos los campos"></label>
   </div>
   <label>Notas<textarea id="b-notas"></textarea></label>
+  <div class="autobox edit-only" id="imp-box" hidden>
+    <span class="lbl">Importar los resultados de esta búsqueda</span>
+    <span class="note">Exporta los resultados desde la base y elige el archivo: PubMed (Save → Format: PubMed), RIS (LILACS/BVS, Scopus, Web of Science, SciELO) o XML de PubMed.</span>
+    <label class="btn ghost filebtn">Elegir archivo<input id="imp-file" type="file" accept=".txt,.nbib,.ris,.xml,text/plain,application/xml" hidden></label>
+    <div id="imp-res" class="oa" hidden></div>
+  </div>
   <div id="b-hist" class="hist" hidden></div>
   <div class="actions">
     <button type="button" class="btn danger left" id="b-del" hidden>Eliminar</button>
@@ -247,8 +253,9 @@ details summary{cursor:pointer}
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="config.js?v=3"></script>
-<script src="autocompletar.js?v=3"></script>
-<script src="app.js?v=3"></script>
+<script src="config.js?v=4"></script>
+<script src="autocompletar.js?v=4"></script>
+<script src="importar.js?v=4"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>
