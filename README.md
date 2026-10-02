@@ -67,7 +67,8 @@ Después de editar `Codigo.gs`: **Implementar → Administrar implementaciones �
 
 ## Cadenas de búsqueda
 
-En [`docs/cadenas-de-busqueda.md`](docs/cadenas-de-busqueda.md), enfocadas en estudios de Uruguay.
+- [`docs/cadenas-de-busqueda.md`](docs/cadenas-de-busqueda.md): cadenas para cada base, enfocadas en estudios de Uruguay.
+- [`docs/literatura-uruguaya.md`](docs/literatura-uruguaya.md): Latindex, revistas uruguayas para revisar a mano, repositorios no indexados y primeros candidatos encontrados.
 
 ## Uso diario
 
