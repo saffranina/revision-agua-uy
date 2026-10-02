@@ -8,6 +8,7 @@
   function detectar(texto) {
     const t = texto.slice(0, 5000);
     if (/<PubmedArticle[\s>]/.test(t) || /<PubmedArticleSet/.test(t)) return "xml";
+    if (/^\s*</.test(t) && /(dc:title|<dim:|element="title"|<title[\s>])/.test(t)) return "dc";
     if (/^PMID- /m.test(t)) return "pubmed";
     if (/^TY  - /m.test(t)) return "ris";
     return null;
@@ -36,8 +37,104 @@
         link: f("UR", "L2") || (doi ? "https://doi.org/" + doi : ""),
         resumen: limpio(f("AB", "N2")),
         afiliaciones: (x.AD || x.C1 || []).join(" | "),
+        db: [f("DB"), f("DP")].join(" "),
       };
     });
+  }
+
+  // XML con Dublin Core (repositorios como Colibri/DSpace, OAI-PMH)
+  function dc(texto) {
+    const doc = new DOMParser().parseFromString(texto, "text/xml");
+    const todos = Array.from(doc.getElementsByTagName("*"));
+    const campo = (el, nombre) => {
+      // <dc:title>…</dc:title> o <dim:field element="title">…</dim:field>
+      const hijos = Array.from(el.getElementsByTagName("*"));
+      return hijos.filter(h => h.localName === nombre || (h.localName === "field" && h.getAttribute("element") === nombre &&
+        !(nombre === "description" && h.getAttribute("qualifier") && h.getAttribute("qualifier") !== "abstract")))
+        .map(h => limpio(h.textContent)).filter(Boolean);
+    };
+    // Un registro = el elemento más chico que contiene un título
+    const titulos = todos.filter(e => e.localName === "title" || (e.localName === "field" && e.getAttribute("element") === "title"));
+    const registros = [...new Set(titulos.map(t => t.parentNode))];
+    return registros.map(r => {
+      const ids = campo(r, "identifier");
+      const doi = (ids.join(" ").match(/10\.\d{4,9}\/[^\s"<>]+/) || [""])[0];
+      const link = ids.find(i => /^https?:\/\//.test(i)) || "";
+      return {
+        titulo: sinPunto(campo(r, "title")[0]),
+        autores: campo(r, "creator").concat(campo(r, "contributor")).join("; "),
+        anio: ((campo(r, "date")[0] || "").match(/\d{4}/) || [""])[0],
+        revista: campo(r, "publisher")[0] || campo(r, "source")[0] || "",
+        doi, link: link || (doi ? "https://doi.org/" + doi : ""),
+        resumen: campo(r, "description").concat(campo(r, "abstract")).join(" "),
+        afiliaciones: "",
+      };
+    });
+  }
+
+  // Adivina la base de datos a partir del archivo
+  function baseDeArchivo(formato, refs) {
+    if (formato === "pubmed" || formato === "xml") return "PubMed/MEDLINE";
+    const db = refs.map(r => r.db || "").join(" ").toLowerCase();
+    if (/scopus/.test(db)) return "Scopus";
+    if (/web of science|wos|clarivate/.test(db)) return "Web of Science";
+    if (/lilacs/.test(db)) return "LILACS";
+    if (/scielo/.test(db)) return "SciELO";
+    if (/medline|pubmed/.test(db)) return "PubMed/MEDLINE";
+    if (/bvs|bireme/.test(db)) return "BVS (Biblioteca Virtual en Salud)";
+    if (/embase/.test(db)) return "Embase";
+    if (/cochrane/.test(db)) return "Cochrane Library";
+    return "";
+  }
+
+  // Lee el link de la página de resultados: base, búsqueda y filtros
+  function leerLink(texto) {
+    let u;
+    try { u = new URL(String(texto).trim()) } catch (e) { return null }
+    const h = u.hostname.toLowerCase(), p = u.searchParams;
+    const todos = k => p.getAll(k).filter(Boolean);
+    const otros = excl => [...p.entries()].filter(([k, v]) => v && !excl.some(x => x instanceof RegExp ? x.test(k) : x === k))
+      .map(([k, v]) => `${k}=${v}`);
+    const ruido = ["page", "sort", "size", "rpp", "start", "etal", "format", "lang", "hl", "utm_source", "utm_medium", "utm_campaign", "from", "count", "output", "show", "page_size"];
+    let base = "Otra", cadena = "", filtros = [];
+    if (/pubmed\.ncbi/.test(h)) {
+      base = "PubMed/MEDLINE"; cadena = p.get("term") || "";
+      filtros = todos("filter");
+    } else if (/bvsalud|lilacs/.test(h)) {
+      cadena = p.get("q") || p.get("query") || "";
+      filtros = [...todos("filter"), ...otros(["q", "query", "filter", "lang", "home_url", "home_text", ...ruido])];
+      base = /lilacs/i.test(filtros.join(" ")) ? "LILACS" : "BVS (Biblioteca Virtual en Salud)";
+    } else if (/scielo/.test(h)) {
+      base = "SciELO"; cadena = p.get("q") || "";
+      filtros = otros(["q", "lang", "where", ...ruido]);
+    } else if (/colibri\.udelar/.test(h)) {
+      base = "Colibri (UdelaR)"; cadena = p.get("query") || p.get("q") || "";
+      // DSpace 6: filter_field_N / filter_type_N / filter_value_N
+      const n = [...p.keys()].filter(k => /^filter_field_\d+$/.test(k)).map(k => k.split("_").pop());
+      filtros = n.map(i => `${p.get("filter_field_" + i)} ${p.get("filter_type_" + i) || ""} ${p.get("filter_value_" + i) || ""}`.trim());
+      // DSpace 7: f.campo=valor,operador
+      filtros = filtros.concat([...p.entries()].filter(([k]) => /^f\./.test(k)).map(([k, v]) => `${k.slice(2)}: ${v}`));
+      if (p.get("scope")) filtros.push("colección: " + p.get("scope"));
+      if (/\/handle\//.test(u.pathname)) filtros.push("dentro de " + u.pathname.replace(/\/(simple-)?search.*$/, ""));
+    } else if (/scholar\.google/.test(h)) {
+      base = "Google Scholar"; cadena = p.get("q") || p.get("as_q") || "";
+      if (p.get("as_ylo") || p.get("as_yhi")) filtros.push(`años ${p.get("as_ylo") || "…"}–${p.get("as_yhi") || "…"}`);
+      if (p.get("lr")) filtros.push("idioma: " + p.get("lr"));
+    } else if (/scopus/.test(h)) {
+      base = "Scopus"; cadena = p.get("s") || "";
+      filtros = otros(["s", "sid", "sot", "sdt", "origin", "src", "editSaveSearch", "txGid", "sessionSearchId", "st1", "st2", "sl", ...ruido]);
+    } else if (/webofscience|webofknowledge/.test(h)) {
+      base = "Web of Science";
+    } else if (/timbo/.test(h)) {
+      base = "Timbó"; cadena = p.get("q") || p.get("query") || p.get("lookfor") || "";
+      filtros = otros(["q", "query", "lookfor", ...ruido]);
+    } else {
+      cadena = p.get("q") || p.get("query") || p.get("term") || p.get("search") || p.get("s") || "";
+      filtros = otros(["q", "query", "term", "search", "s", ...ruido]);
+    }
+    // filter[db][]=LILACS → db: LILACS
+    filtros = filtros.map(f => f.replace(/^filter\[([^\]]+)\](\[\])?=/, "$1: "));
+    return { base, cadena, filtros: filtros.join("; "), link: u.href, sitio: h };
   }
 
   function pubmed(texto) {
@@ -95,8 +192,9 @@
   function leer(texto) {
     const formato = detectar(texto);
     if (!formato) throw new Error("formato");
-    const refs = (formato === "ris" ? ris(texto) : formato === "pubmed" ? pubmed(texto) : xml(texto)).filter(r => r.titulo);
-    return { formato, refs };
+    const lector = { ris, pubmed, xml, dc }[formato];
+    const refs = lector(texto).filter(r => r.titulo);
+    return { formato, refs, base: baseDeArchivo(formato, refs) };
   }
 
   // Marca como duplicado lo que ya está en el registro o se repite dentro del archivo
@@ -116,5 +214,5 @@
     });
   }
 
-  window.Importar = { leer, marcarDuplicados };
+  window.Importar = { leer, marcarDuplicados, leerLink };
 })();

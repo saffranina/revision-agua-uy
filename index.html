@@ -169,6 +169,17 @@ details summary{cursor:pointer}
 
 <dialog id="dlg-b"><form id="form-b">
   <h2 id="dlg-b-title">Nueva búsqueda</h2>
+  <div class="autobox edit-only" id="imp-box">
+    <span class="lbl">Completar solo</span>
+    <div class="bar">
+      <input class="grow" id="bl-url" type="url" inputmode="url" placeholder="Pega el link de la página de resultados" autocomplete="off">
+      <button type="button" class="btn" id="bl-btn">Completar</button>
+    </div>
+    <span class="note">Copia la dirección de la barra del navegador mientras ves los resultados (PubMed, BVS/LILACS, SciELO, Colibri, Google Scholar…). De ahí saco la base, la búsqueda y los filtros.</span>
+    <label class="btn ghost filebtn">Adjuntar archivo de resultados<input id="imp-file" type="file" accept=".txt,.nbib,.ris,.xml,text/plain,application/xml,text/xml" hidden></label>
+    <span class="note">PubMed (Save → Format: PubMed), RIS o XML. Cuento los resultados y cargo los artículos.</span>
+    <div id="imp-res" class="oa" hidden></div>
+  </div>
   <div class="grid2">
     <label>Base de datos<select id="b-base" required></select></label>
     <label>Fecha de búsqueda<input id="b-fecha" type="date" required></label>
@@ -180,12 +191,6 @@ details summary{cursor:pointer}
     <label>Campos buscados<input id="b-campos" placeholder="Título/resumen, MeSH, todos los campos"></label>
   </div>
   <label>Notas<textarea id="b-notas"></textarea></label>
-  <div class="autobox edit-only" id="imp-box" hidden>
-    <span class="lbl">Importar los resultados de esta búsqueda</span>
-    <span class="note">Exporta los resultados desde la base y elige el archivo: PubMed (Save → Format: PubMed), RIS (LILACS/BVS, Scopus, Web of Science, SciELO) o XML de PubMed.</span>
-    <label class="btn ghost filebtn">Elegir archivo<input id="imp-file" type="file" accept=".txt,.nbib,.ris,.xml,text/plain,application/xml" hidden></label>
-    <div id="imp-res" class="oa" hidden></div>
-  </div>
   <div id="b-hist" class="hist" hidden></div>
   <div class="actions">
     <button type="button" class="btn danger left" id="b-del" hidden>Eliminar</button>
@@ -253,9 +258,9 @@ details summary{cursor:pointer}
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="config.js?v=4"></script>
-<script src="autocompletar.js?v=4"></script>
-<script src="importar.js?v=4"></script>
-<script src="app.js?v=4"></script>
+<script src="config.js?v=5"></script>
+<script src="autocompletar.js?v=5"></script>
+<script src="importar.js?v=5"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

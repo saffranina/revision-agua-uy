@@ -73,7 +73,8 @@ Después de editar `Codigo.gs`: **Implementar → Administrar implementaciones �
 ## Uso diario
 
 - **Búsquedas**: base, fecha, cadena exacta, filtros y número de resultados.
-- **Importar resultados**: abre una búsqueda guardada y elige el archivo exportado de la base (PubMed: *Save → Format: PubMed*; LILACS/BVS, Scopus, Web of Science, SciELO: *RIS*; también XML de PubMed). Se cargan todos los artículos como «Pendiente de cribado», con los duplicados ya marcados y el chequeo de Uruguay hecho.
+- **Completar una búsqueda sola**: en «Nueva búsqueda» pega el link de la página de resultados (PubMed, BVS/LILACS, SciELO, Colibri, Google Scholar, Scopus…) y toca «Completar»: saca la base, la cadena y los filtros. Si además adjuntas el archivo de resultados, cuenta cuántos hay y al guardar carga todos los artículos.
+- **Importar resultados**: abre una búsqueda guardada y elige el archivo exportado de la base (PubMed: *Save → Format: PubMed*; LILACS/BVS, Scopus, Web of Science, SciELO: *RIS*; también XML de PubMed o de repositorios como Colibri). Se cargan todos los artículos como «Pendiente de cribado», con los duplicados ya marcados y el chequeo de Uruguay hecho.
 - **Completar solo**: en una referencia nueva pega el DOI, el PMID o el link y toca «Completar». Busca en OpenAlex, Crossref y PubMed y llena título, autores, año, revista, DOI, link y resumen. Además avisa si hay autores con afiliación en Uruguay o si el artículo menciona Uruguay, y si existe un PDF de acceso abierto lo guarda solo en Drive.
 - **Referencias**: título, autores, año, revista, DOI, link de la fuente, resumen, estado del cribado, motivo de exclusión, exposición y notas. El código (`R001`, `R002`…) se asigna solo.
 - **PDF**: «Subir PDF» lo guarda en Drive con el nombre automático. Si el PDF pesa más de 30 MB, guárdalo en Drive y pega el link.
