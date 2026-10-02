@@ -295,8 +295,8 @@ $("#imp-file").onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
   let leido;
   try { leido = Importar.leer(await f.text()) }
-  catch (err) { $("#imp-res").hidden = false; $("#imp-res").innerHTML = `<span class="uycheck warn">No reconozco el formato de «${esc(f.name)}». Usa el formato PubMed, RIS o XML.</span>`; importando = null; return }
-  const nombres = { ris: "RIS", pubmed: "PubMed", xml: "XML de PubMed", dc: "XML de repositorio", feed: "hilo RSS/Atom" };
+  catch (err) { $("#imp-res").hidden = false; $("#imp-res").innerHTML = `<span class="uycheck warn">No reconozco el formato de «${esc(f.name)}». Usa RIS, BibTeX, CSV, formato PubMed o XML.</span>`; importando = null; return }
+  const nombres = { ris: "RIS", pubmed: "PubMed", xml: "XML de PubMed", dc: "XML de repositorio", feed: "hilo RSS/Atom", bibtex: "BibTeX", csv: "CSV" };
   mostrarImportacion(f.name, `en el archivo (${nombres[leido.formato]})`, leido);
 };
 // Muestra el resumen de lo que se va a importar y lo deja listo para guardar

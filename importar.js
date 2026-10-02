@@ -12,6 +12,8 @@
     if (/^\s*</.test(t) && /(dc:title|<dim:|element="title"|<title[\s>])/.test(t)) return "dc";
     if (/^PMID- /m.test(t)) return "pubmed";
     if (/^TY  - /m.test(t)) return "ris";
+    if (/^\s*@\w+\s*\{/m.test(t)) return "bibtex";
+    if (/^[^\n]*(title|t[ií]tulo)[^\n]*[,;\t][^\n]*$/im.test(t.split("\n")[0] || "")) return "csv";
     return null;
   }
 
@@ -70,6 +72,68 @@
         resumen: campo(r, "description").concat(campo(r, "abstract")).join(" "),
         afiliaciones: "",
       };
+    });
+  }
+
+  // Acentos al estilo LaTeX: {\'o} → ó, \~n → ñ, {\"u} → ü
+  function latex(v) {
+    const marca = { "'": "\u0301", "`": "\u0300", "^": "\u0302", "~": "\u0303", '"': "\u0308", "c": "\u0327" };
+    return v.replace(/\\i(?![a-z])/g, "i")
+      .replace(/\{?\\(['`^~"]|c\s)\s*\{?\s*([A-Za-z])\s*\}?\}?/g, (_, m, l) => (l + marca[m.trim()]).normalize("NFC"))
+      .replace(/\\&/g, "&").replace(/[{}]/g, "");
+  }
+
+  // BibTeX: @article{clave, title = {…}, author = {A and B}, …}
+  function bibtex(texto) {
+    const out = [];
+    const re = /@(\w+)\s*\{\s*[^,]*,/g; let m;
+    const inicios = []; while ((m = re.exec(texto))) inicios.push(m.index);
+    inicios.forEach((ini, i) => {
+      const bloque = texto.slice(ini, inicios[i + 1] ?? texto.length);
+      const campos = {};
+      const rc = /(\w+)\s*=\s*/g; let c;
+      while ((c = rc.exec(bloque))) {
+        let j = rc.lastIndex, valor = "";
+        if (bloque[j] === "{") { let prof = 0; for (; j < bloque.length; j++) { if (bloque[j] === "{") prof++; else if (bloque[j] === "}") { prof--; if (!prof) break } valor += bloque[j] } valor = valor.slice(1) }
+        else if (bloque[j] === '"') { j++; while (j < bloque.length && bloque[j] !== '"') valor += bloque[j++] }
+        else { while (j < bloque.length && !/[,}\n]/.test(bloque[j])) valor += bloque[j++] }
+        campos[c[1].toLowerCase()] = limpio(latex(valor));
+        rc.lastIndex = j + 1;
+      }
+      const doi = (campos.doi || "").replace(/^https?:\/\/(dx\.)?doi\.org\//i, "");
+      out.push({
+        titulo: sinPunto(campos.title), autores: (campos.author || "").split(/\s+and\s+/).map(limpio).filter(Boolean).join("; "),
+        anio: ((campos.year || campos.date || "").match(/\d{4}/) || [""])[0], revista: campos.journal || campos.booktitle || campos.publisher || "",
+        doi, link: campos.url || (doi ? "https://doi.org/" + doi : ""), resumen: campos.abstract || "", afiliaciones: campos.affiliation || "",
+      });
+    });
+    return out;
+  }
+
+  // CSV con encabezados (separado por coma, punto y coma o tabulador)
+  function csv(texto) {
+    const primera = texto.split("\n")[0];
+    const sep = [",", ";", "\t"].sort((a, b) => primera.split(b).length - primera.split(a).length)[0];
+    const filas = []; let fila = [], celda = "", comillas = false;
+    for (let i = 0; i < texto.length; i++) {
+      const ch = texto[i];
+      if (comillas) { if (ch === '"' && texto[i + 1] === '"') { celda += '"'; i++ } else if (ch === '"') comillas = false; else celda += ch }
+      else if (ch === '"') comillas = true;
+      else if (ch === sep) { fila.push(celda); celda = "" }
+      else if (ch === "\n" || ch === "\r") { if (ch === "\r" && texto[i + 1] === "\n") i++; fila.push(celda); filas.push(fila); fila = []; celda = "" }
+      else celda += ch;
+    }
+    if (celda || fila.length) { fila.push(celda); filas.push(fila) }
+    const cab = (filas.shift() || []).map(h => h.replace(/^\ufeff/, "").trim().toLowerCase());
+    const col = (...pats) => cab.findIndex(h => pats.some(p => p.test(h)));
+    const iT = col(/^t[ií]tulo$/, /^title$/, /article title/, /t[ií]tulo/, /title/), iA = col(/^autor(es)?$/, /^authors?$/, /autor/, /author/),
+      iY = col(/^a[ñn]o$/, /^year$/, /publication year/, /a[ñn]o/, /year/, /^date$/, /fecha/), iJ = col(/revista/, /journal/, /source title/, /^source$/, /fuente/, /publica/),
+      iD = col(/^doi$/, /doi/), iU = col(/^url$/, /^link$/, /url/, /link/, /enlace/), iR = col(/resumen/, /abstract/);
+    const v = (f, i) => i >= 0 ? limpio(f[i]) : "";
+    return filas.filter(f => f.some(x => x.trim())).map(f => {
+      const doi = v(f, iD).replace(/^https?:\/\/(dx\.)?doi\.org\//i, "");
+      return { titulo: sinPunto(v(f, iT)), autores: v(f, iA), anio: (v(f, iY).match(/\d{4}/) || [""])[0], revista: v(f, iJ),
+        doi, link: v(f, iU) || (doi ? "https://doi.org/" + doi : ""), resumen: v(f, iR), afiliaciones: "" };
     });
   }
 
@@ -257,7 +321,7 @@
   function leer(texto) {
     const formato = detectar(texto);
     if (!formato) throw new Error("formato");
-    const lector = { ris, pubmed, xml, dc, feed }[formato];
+    const lector = { ris, pubmed, xml, dc, feed, bibtex, csv }[formato];
     const refs = lector(texto).filter(r => r.titulo);
     return { formato, refs, base: baseDeArchivo(formato, refs) };
   }
