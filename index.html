@@ -95,6 +95,13 @@ dialog .actions .left{margin-right:auto}
 .status{font-size:.82rem;color:var(--muted);margin-top:6px}
 body:not(.editing) .edit-only{display:none!important}
 details summary{cursor:pointer}
+.autobox{display:grid;gap:6px;background:var(--accent-soft);border-radius:8px;padding:10px 12px}
+.autobox .lbl{font-size:.85rem;color:var(--muted);font-weight:600}
+.uycheck{font-size:.9rem;border-radius:8px;padding:8px 12px;border:1px solid currentColor}
+.uycheck.ok{color:var(--ok)} .uycheck.warn{color:var(--warn)}
+.oa{display:grid;gap:4px;font-size:.9rem}
+.oa label{display:flex;gap:8px;align-items:center;font-weight:400;color:var(--ink);font-size:.9rem}
+.oa input{width:auto}
 .progress{font-size:.85rem;color:var(--accent);font-weight:600}
 </style>
 </head>
@@ -183,6 +190,15 @@ details summary{cursor:pointer}
 
 <dialog id="dlg-r"><form id="form-r">
   <h2 id="dlg-r-title">Nueva referencia</h2>
+  <div class="autobox edit-only">
+    <span class="lbl">Completar solo</span>
+    <div class="bar">
+      <input class="grow" id="auto-in" placeholder="Pega el DOI, el PMID o el link del artículo" autocomplete="off">
+      <button type="button" class="btn" id="auto-btn">Completar</button>
+    </div>
+    <span class="note">Busca el artículo en OpenAlex, Crossref y PubMed y llena los campos vacíos. Después revisa y corrige lo que haga falta.</span>
+  </div>
+  <div id="uy-check" class="uycheck" hidden></div>
   <label>Título<textarea id="r-titulo" required style="min-height:60px"></textarea></label>
   <label>Autores<input id="r-autores" placeholder="Apellido A, Apellido B"></label>
   <div class="grid2">
@@ -201,6 +217,7 @@ details summary{cursor:pointer}
     <div class="edit-only" style="display:grid;gap:6px">
       <label class="btn ghost filebtn">Subir PDF<input id="r-pdf" type="file" accept="application/pdf,.pdf" hidden></label>
       <span class="note">Se guarda solo en tu Drive («2 - PDFs ordenados») con el nombre:</span>
+      <div id="oa-box" hidden></div>
       <code class="q" id="r-nombre">Se genera al completar autor, año y título</code>
       <details><summary class="note">O pega un link de Drive</summary>
         <label style="margin-top:6px">Link al PDF<input id="r-drive" type="url" inputmode="url" placeholder="https://drive.google.com/file/d/…"></label></details>
@@ -231,6 +248,7 @@ details summary{cursor:pointer}
 <div class="toast" id="toast" hidden></div>
 
 <script src="config.js"></script>
+<script src="autocompletar.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

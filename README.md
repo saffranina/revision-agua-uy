@@ -65,9 +65,14 @@ En la página toca **🔒 Solo lectura**, escribe tu clave y listo. Queda guarda
 
 Después de editar `Codigo.gs`: **Implementar → Administrar implementaciones → ✏️ → Versión: Nueva versión → Implementar**. La URL no cambia.
 
+## Cadenas de búsqueda
+
+En [`docs/cadenas-de-busqueda.md`](docs/cadenas-de-busqueda.md), enfocadas en estudios de Uruguay.
+
 ## Uso diario
 
 - **Búsquedas**: base, fecha, cadena exacta, filtros y número de resultados.
+- **Completar solo**: en una referencia nueva pega el DOI, el PMID o el link y toca «Completar». Busca en OpenAlex, Crossref y PubMed y llena título, autores, año, revista, DOI, link y resumen. Además avisa si hay autores con afiliación en Uruguay o si el artículo menciona Uruguay, y si existe un PDF de acceso abierto lo guarda solo en Drive.
 - **Referencias**: título, autores, año, revista, DOI, link de la fuente, resumen, estado del cribado, motivo de exclusión, exposición y notas. El código (`R001`, `R002`…) se asigna solo.
 - **PDF**: «Subir PDF» lo guarda en Drive con el nombre automático. Si el PDF pesa más de 30 MB, guárdalo en Drive y pega el link.
 - **PRISMA**: el diagrama de flujo se calcula solo.

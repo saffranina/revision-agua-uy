@@ -24,6 +24,7 @@ const store = {
   set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v) } catch (e) { } },
 };
 
+let pdfAbierto = "", uruguayAuto = "";
 let B = [], R = [], H = [], clave = store.get("clave") || "", editB = null, editR = null, pdfFile = null, cargando = false;
 
 function toast(msg, ms = 2800) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => t.hidden = true, ms) }
@@ -187,6 +188,8 @@ function openR(codigo) {
   for (const k of ["titulo", "autores", "anio", "revista", "doi", "link", "resumen", "motivo", "tema", "notas"]) $("#r-" + k).value = d[k] ?? "";
   $("#r-busqueda").value = d.busqueda || ""; $("#r-estado").value = d.estadoK || "pend"; $("#r-del").hidden = !codigo || !clave;
   $("#r-drive").value = ""; pdfFile = null; $("#r-pdf").value = "";
+  $("#auto-in").value = ""; pdfAbierto = ""; uruguayAuto = d.uruguay || ""; $("#oa-box").hidden = true;
+  mostrarUy(uruguayAuto ? { texto: uruguayAuto, ok: !/^No /.test(uruguayAuto) } : null);
   renderPdf(d); updNombre();
   const hist = codigo ? H.filter(h => h.codigo === codigo) : [];
   $("#r-hist").innerHTML = histHtml(hist); $("#r-hist").hidden = !hist.length;
@@ -213,12 +216,58 @@ $("#r-pdf").onchange = e => {
 };
 const leerBase64 = f => new Promise((ok, mal) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1]); r.onerror = mal; r.readAsDataURL(f) });
 
+/* ---------- Autocompletar por DOI, PMID o link ---------- */
+function mostrarUy(c) {
+  const el = $("#uy-check");
+  if (!c) { el.hidden = true; return }
+  el.hidden = false; el.className = "uycheck " + (c.ok ? "ok" : "warn"); el.textContent = (c.ok ? "🇺🇾 " : "⚠️ ") + c.texto;
+}
+function textoUy(c) {
+  if (c.afUy) return "Autores con afiliación en Uruguay" + (c.inst.length ? ": " + c.inst.slice(0, 3).join(", ") : "") + (c.menciona ? ". Menciona Uruguay en título o resumen." : ".");
+  if (c.menciona) return "Menciona Uruguay en el título o el resumen (sin afiliación uruguaya detectada).";
+  return "No se detectó Uruguay en las afiliaciones ni en el título o el resumen. Revisa si cumple el criterio de inclusión.";
+}
+$("#auto-btn").onclick = async () => {
+  const entrada = $("#auto-in").value.trim();
+  if (!entrada) { toast("Pega primero el DOI, el PMID o el link."); return }
+  const btn = $("#auto-btn"); btn.disabled = true; btn.textContent = "Buscando…";
+  try {
+    const d = await Autocompletar.buscar(entrada);
+    let n = 0;
+    for (const k of ["titulo", "autores", "anio", "revista", "doi", "link", "resumen"]) {
+      const v = String(d[k] ?? "").trim();
+      if (v && !$("#r-" + k).value.trim()) { $("#r-" + k).value = v; n++ }
+    }
+    if (!$("#r-link").value && /^https?:\/\//i.test(entrada)) $("#r-link").value = entrada;
+    updNombre();
+    const c = Autocompletar.chequeoUruguay(d);
+    uruguayAuto = textoUy(c); mostrarUy({ texto: uruguayAuto, ok: c.afUy || c.menciona });
+    pdfAbierto = safeUrl(d.pdfAbierto);
+    const box = $("#oa-box");
+    if (pdfAbierto && !pdfFile) {
+      box.hidden = false;
+      box.innerHTML = `<div class="oa"><a href="${esc(pdfAbierto)}" target="_blank" rel="noopener" style="color:var(--ok);font-weight:600">PDF de acceso abierto disponible ↗</a>
+        <label><input type="checkbox" id="oa-guardar" checked> Guardarlo solo en Drive al guardar la referencia</label></div>`;
+    } else if (d.linkAbierto) {
+      box.hidden = false;
+      box.innerHTML = `<div class="oa"><a href="${esc(d.linkAbierto)}" target="_blank" rel="noopener" style="color:var(--ok);font-weight:600">Versión de acceso abierto ↗</a><span class="note">Ábrela, baja el PDF y súbelo con «Subir PDF».</span></div>`;
+    } else box.hidden = true;
+    toast(n ? `Completé ${n} campo${n > 1 ? "s" : ""} con datos de ${d.fuentes.join(", ")}. Revísalos.` : "No había campos vacíos para completar.", 4000);
+  } catch (e) {
+    if (e.message === "sin-id") {
+      if (/^https?:\/\//i.test(entrada) && !$("#r-link").value) $("#r-link").value = entrada;
+      toast("No encontré un DOI ni un PMID ahí. Guardé el link; busca el DOI en la página del artículo y pégalo para completar el resto.", 6000);
+    } else toast("No encontré ese artículo en OpenAlex, Crossref ni PubMed. Complétalo a mano.", 5000);
+  } finally { btn.disabled = false; btn.textContent = "Completar" }
+};
+$("#auto-in").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("#auto-btn").click() } });
+
 $("#add-b").onclick = () => openB(null);
 $("#add-r").onclick = () => openR(null);
 
 async function guardar(btn, dlg, fn, okMsg) {
   btn.disabled = true; const txt = btn.textContent; btn.textContent = "Guardando…";
-  try { await fn(); dlg.close(); toast(okMsg); await cargar(true) }
+  try { const j = await fn(); dlg.close(); toast(j && j.aviso ? j.aviso : okMsg, j && j.aviso ? 6000 : 2800); await cargar(true) }
   catch (e) { toast(e.message === "Clave incorrecta." ? "La clave ya no es válida. Vuelve a entrar al modo edición." : "No se pudo guardar: " + e.message, 4500) }
   finally { btn.disabled = false; btn.textContent = txt }
 }
@@ -233,12 +282,15 @@ $("#form-r").onsubmit = e => {
   const datos = { codigo: editR || "", titulo: $("#r-titulo").value.trim(), autores: $("#r-autores").value.trim(), anio: $("#r-anio").value,
     revista: $("#r-revista").value.trim(), doi: $("#r-doi").value.trim(), link: $("#r-link").value.trim(), resumen: $("#r-resumen").value.trim(),
     busqueda: $("#r-busqueda").value, estado: $("#r-estado").value, motivo: $("#r-motivo").value.trim(), tema: $("#r-tema").value.trim(),
-    notas: $("#r-notas").value.trim(), pdfLink: safeUrl($("#r-drive").value.trim()) };
+    notas: $("#r-notas").value.trim(), pdfLink: safeUrl($("#r-drive").value.trim()), uruguay: uruguayAuto };
+  const oaChk = $("#oa-guardar");
+  if (!pdfFile && pdfAbierto && oaChk && oaChk.checked && !$("#oa-box").hidden) datos.pdfUrl = pdfAbierto;
   const file = pdfFile;
   guardar($("#r-save"), $("#dlg-r"), async () => {
     if (file) { toast("Subiendo PDF…", 20000); datos.pdfBase64 = await leerBase64(file) }
-    await api("guardarReferencia", datos);
-  }, file ? "Referencia y PDF guardados" : "Referencia guardada");
+    if (datos.pdfUrl) toast("Guardando el PDF de acceso abierto en Drive…", 20000);
+    return api("guardarReferencia", datos);
+  }, file || datos.pdfUrl ? "Referencia y PDF guardados" : "Referencia guardada");
 };
 function armDelete(btn, go) {
   btn.onclick = () => {
@@ -256,9 +308,9 @@ function build(name) {
   if (name === "busquedas.csv") return csv(["ID", "Base", "Fecha de búsqueda", "Cadena", "Filtros", "Campos", "Resultados", "Notas", "Registrada"],
     B.map(b => [b.id, b.base, b.fecha, b.cadena, b.filtros, b.campos, b.n, b.notas, b.creado]));
   if (name === "referencias.csv") return csv(["Código", "Título", "Autores", "Año", "Revista", "DOI", "Link", "Resumen", "Base", "Fecha de búsqueda",
-    "Registrada", "Cribada", "Estado", "Estado desde", "Motivo exclusión", "Exposición", "PDF", "Nombre del PDF", "Notas"],
+    "Registrada", "Cribada", "Estado", "Estado desde", "Motivo exclusión", "Exposición", "Uruguay (chequeo automático)", "PDF", "Nombre del PDF", "Notas"],
     R.map(r => [r.codigo, r.titulo, r.autores, r.anio, r.revista, r.doi, r.link, r.resumen, r.base, r.fechaBusqueda, r.creado, r.fechaCribado,
-      r.estado, r.fechaEstado, r.motivo, r.tema, r.pdf, r.pdfNombre, r.notas]));
+      r.estado, r.fechaEstado, r.motivo, r.tema, r.uruguay, r.pdf, r.pdfNombre, r.notas]));
   return R.map(r => {
     const L = ["TY  - JOUR", `ID  - ${r.codigo}`, `TI  - ${r.titulo}`];
     String(r.autores || "").split(/[;,]\s*(?=[A-ZÁÉÍÓÚÑ])/).filter(Boolean).forEach(a => L.push(`AU  - ${a.trim()}`));

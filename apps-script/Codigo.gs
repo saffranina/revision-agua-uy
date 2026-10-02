@@ -44,7 +44,7 @@ const HOJAS = {
     ['revista', 'Revista / fuente'], ['doi', 'DOI'], ['link', 'Link de la fuente'],
     ['resumen', 'Resumen'], ['busqueda', 'ID búsqueda'], ['base', 'Base de datos'],
     ['fechaBusqueda', 'Fecha de búsqueda'], ['estado', 'Estado'], ['motivo', 'Motivo de exclusión'],
-    ['tema', 'Exposición / contaminante'], ['creado', 'Registrada el'],
+    ['tema', 'Exposición / contaminante'], ['uruguay', 'Uruguay (chequeo automático)'], ['creado', 'Registrada el'],
     ['fechaCribado', 'Cribada el'], ['fechaEstado', 'Estado actual desde'],
     ['pdf', 'PDF en Drive'], ['pdfNombre', 'Nombre del PDF'], ['pdfFecha', 'PDF guardado el'],
     ['notas', 'Notas'], ['actualizado', 'Última edición'],
@@ -136,6 +136,7 @@ function guardarReferencia_(d) {
     codigo, titulo: d.titulo, autores: d.autores, anio: d.anio || '', revista: d.revista,
     doi: d.doi, link: d.link, resumen: d.resumen, busqueda: d.busqueda || '',
     base, fechaBusqueda, estado: estadoTxt, motivo: d.motivo, tema: d.tema,
+    uruguay: d.uruguay || previo.uruguay || '',
     creado: previo.creado || ahora,
     fechaCribado: previo.fechaCribado || (estado !== 'pend' ? ahora : ''),
     fechaEstado: cambioEstado ? ahora : previo.fechaEstado,
@@ -145,9 +146,23 @@ function guardarReferencia_(d) {
     notas: d.notas, actualizado: ahora,
   };
 
-  if (d.pdfBase64) {
+  // PDF: subido desde la página, o bajado solo desde un link de acceso abierto
+  let bytes = null, aviso = '';
+  if (d.pdfBase64) bytes = Utilities.base64Decode(d.pdfBase64);
+  else if (d.pdfUrl) {
+    try {
+      const r = UrlFetchApp.fetch(d.pdfUrl, { muteHttpExceptions: true, followRedirects: true });
+      const b = r.getContent();
+      // Solo se acepta si de verdad es un PDF (empieza con %PDF)
+      if (r.getResponseCode() === 200 && b.length > 4 && b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46) bytes = b;
+      else aviso = 'Referencia guardada, pero la revista no dejó bajar el PDF automáticamente. Bájalo desde el link y súbelo con «Subir PDF».';
+    } catch (err) {
+      aviso = 'Referencia guardada, pero no se pudo bajar el PDF automáticamente. Bájalo desde el link y súbelo con «Subir PDF».';
+    }
+  }
+  if (bytes) {
     const nombre = nombrePdf_(reg);
-    const blob = Utilities.newBlob(Utilities.base64Decode(d.pdfBase64), 'application/pdf', nombre);
+    const blob = Utilities.newBlob(bytes, 'application/pdf', nombre);
     const archivo = DriveApp.getFolderById(CARPETA_PDFS).createFile(blob);
     if (PDFS_PUBLICOS) archivo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     reg.pdf = archivo.getUrl();
@@ -159,7 +174,7 @@ function guardarReferencia_(d) {
   escribirFila_(hoja, fila, reg);
   if (nueva) historial_(codigo, 'Registrada', estadoTxt);
   else if (cambioEstado) historial_(codigo, 'Cambio de estado', previo.estado + ' → ' + estadoTxt);
-  return { codigo };
+  return { codigo, aviso };
 }
 
 function siguienteCodigo_(hoja) {
