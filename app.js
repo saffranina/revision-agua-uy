@@ -4,7 +4,7 @@ const BASES = ["PubMed/MEDLINE", "LILACS", "SciELO", "BVS (Biblioteca Virtual en
   "Cochrane Library", "Google Scholar", "Colibri (UdelaR)", "Timbó", "Literatura gris / informes (OSE, MSP, URSEA)", "Otra"];
 const ESTADOS = [
   ["pend", "Pendiente de cribado"], ["dup", "Duplicado"], ["exta", "Excluida por título/resumen"],
-  ["ft", "A texto completo"], ["extc", "Excluida a texto completo"], ["inc", "Incluida"]];
+  ["ft", "A texto completo"], ["nr", "Texto completo no recuperado"], ["extc", "Excluida a texto completo"], ["inc", "Incluida"]];
 const estadoLabel = k => (ESTADOS.find(e => e[0] === k) || ESTADOS[0])[1];
 const estadoKey = l => (ESTADOS.find(e => e[1] === l) || ESTADOS[0])[0];
 const MAX_PDF = 30 * 1048576;
@@ -27,7 +27,7 @@ const store = {
 let pdfAbierto = "", uruguayAuto = "", colaCrib = [];
 // Quién entró: administración y/o Revisor 1, 2 o 3 (cribado doble ciego)
 let rol = (() => { try { return JSON.parse(store.get("rol") || "null") } catch (e) { return null } })();
-let mias = new Map(), otroAvance = null, doble = false, ACU = null;
+let mias = new Map(), otroAvance = null, doble = false, ACU = null, PROT = {}, EXT = [], SES = [];
 const faseNum = () => $("#c-fase").value === "pend" ? 1 : 2;
 const claveDec = (codigo, fase) => codigo + "|" + fase;
 let B = [], R = [], H = [], clave = store.get("clave") || "", editB = null, editR = null, pdfFile = null, cargando = false;
@@ -73,6 +73,8 @@ function aplicar(j) {
   R = (j.referencias || []).map(r => ({ ...r, estadoK: estadoKey(r.estado) })).sort((a, b) => String(b.codigo).localeCompare(String(a.codigo)));
   H = j.historial || [];
   ACU = j.acuerdo || null;
+  PROT = Object.fromEntries((j.protocolo || []).map(x => [x.clave, x.valor]));
+  EXT = j.extraccion || []; SES = j.sesgo || [];
   renderAll();
 }
 // Llama al motor y traduce cada falla a un mensaje que diga qué revisar
@@ -147,7 +149,7 @@ function renderB() {
   el.innerHTML = B.map(b => {
     const nref = R.filter(r => r.busqueda === b.id).length;
     return `<div class="item" data-id="${esc(b.id)}" tabindex="0">
-      <div class="top"><span class="t">${esc(b.base)}</span><span class="meta">${esc(fdate(b.fecha))} · ${Number(b.n || 0).toLocaleString("es-UY")} resultados · ${nref} ref.</span></div>
+      <div class="top"><span class="t">${esc(b.base)}${Prisma.metodoDe(b) === "otros" ? ' <span class="meta">· otros métodos</span>' : ""}</span><span class="meta">${esc(fdate(b.fecha))} · ${Number(b.n || 0).toLocaleString("es-UY")} resultados · ${nref} ref.</span></div>
       <div class="q">${esc(b.cadena)}</div>
       ${b.filtros ? `<div class="meta">Filtros: ${esc(b.filtros)}</div>` : ""}
       ${safeUrl(b.link) ? `<div class="links"><a href="${esc(b.link)}" target="_blank" rel="noopener">Ver resultados ↗</a></div>` : ""}
@@ -198,29 +200,36 @@ function indiceDuplicados() {
 $("#f-text").oninput = renderR; $("#f-estado").onchange = renderR; $("#f-busq").onchange = renderR;
 
 function renderP() {
-  const ident = B.reduce((s, b) => s + Number(b.n || 0), 0);
-  const c = k => R.filter(r => r.estadoK === k).length;
-  const dup = c("dup"), exta = c("exta"), extc = c("extc"), inc = c("inc"), ft = c("ft"), pend = c("pend");
-  const reasons = {}; R.forEach(r => { if (r.estadoK === "extc") { const m = r.motivo || "Sin motivo anotado"; reasons[m] = (reasons[m] || 0) + 1 } });
-  const byBase = {}; B.forEach(b => { byBase[b.base] = (byBase[b.base] || 0) + Number(b.n || 0) });
-  const list = o => `<ul class="reasons">${Object.entries(o).map(([k, v]) => `<li>${esc(k)}: ${v.toLocaleString("es-UY")}</li>`).join("")}</ul>`;
-  const box = (l, n, side, extra = "") => `<div class="box${side ? " side" : ""}"><span>${l}${extra}</span><b>${n.toLocaleString("es-UY")}</b></div>`;
-  $("#prisma").innerHTML = `
-    <div class="stage">Identificación</div>
-    ${box("Registros identificados en bases de datos", ident, false, Object.keys(byBase).length ? list(byBase) : "")}
-    ${box("Registros cargados en este registro", R.length)}
-    ${box("Duplicados eliminados", dup, true)}
-    <div class="stage">Cribado</div>
-    ${box("Registros cribados (título/resumen)", R.length - dup)}
-    ${box("Pendientes de cribar", pend, true)}
-    ${box("Excluidos por título/resumen", exta, true)}
-    ${box("Evaluados a texto completo", ft + extc + inc)}
-    ${box("Excluidos a texto completo", extc, true, Object.keys(reasons).length ? list(reasons) : "")}
-    <div class="stage">Incluidos</div>
-    ${box("Estudios incluidos en la revisión", inc)}
-    ${acuerdoHtml()}
-    ${ident > R.length ? `<p class="note">Hay ${(ident - R.length).toLocaleString("es-UY")} resultados de búsqueda que todavía no están cargados como referencias.</p>` : ""}`;
+  $("#prisma-svg").innerHTML = R.length || B.length ? Prisma.diagrama(B, R) : `<div class="empty">El diagrama se arma solo cuando registres búsquedas y referencias.</div>`;
+  $("#acuerdo").innerHTML = acuerdoHtml();
+  $("#tabla-busq").innerHTML = Prisma.tablaHtml(B);
+  const t = Prisma.textoMetodos(B, R, ACU, PROT, EXT, SES);
+  $("#txt-metodos").textContent = t.metodos; $("#txt-resultados").textContent = t.resultados;
+  $("#txt-aviso").textContent = t.aviso; $("#txt-aviso").hidden = !t.aviso;
 }
+function descargar(nombre, contenido, tipo) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(contenido instanceof Blob ? contenido : new Blob([contenido], { type: tipo }));
+  a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+}
+$("#dl-svg").onclick = () => descargar("diagrama-prisma-2020.svg", Prisma.diagrama(B, R), "image/svg+xml");
+$("#dl-png").onclick = () => {
+  const svg = Prisma.diagrama(B, R), img = new Image();
+  img.onload = () => {
+    const c = document.createElement("canvas"); c.width = img.width * 2; c.height = img.height * 2;
+    const g = c.getContext("2d"); g.scale(2, 2); g.drawImage(img, 0, 0);
+    c.toBlob(b => descargar("diagrama-prisma-2020.png", b), "image/png");
+  };
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+};
+$("#dl-tabla-doc").onclick = () => descargar("estrategias-de-busqueda.doc", Prisma.tablaWord(B), "application/msword");
+$("#dl-tabla-csv").onclick = () => descargar("estrategias-de-busqueda.csv", Prisma.tablaCsv(B), "text/csv;charset=utf-8");
+document.querySelectorAll("[data-copiar]").forEach(b => b.onclick = async () => {
+  const el = $(b.dataset.copiar);
+  try { await navigator.clipboard.writeText(el.textContent); toast("Copiado") }
+  catch (e) { const r = document.createRange(); r.selectNodeContents(el); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast("Texto seleccionado: cópialo") }
+});
 // Kappa de Cohen con la escala de Landis y Koch
 function acuerdoHtml() {
   if (!ACU || !((ACU.fase1 && ACU.fase1.n) || (ACU.fase2 && ACU.fase2.n))) return "";
@@ -251,6 +260,7 @@ function openB(id) {
   $("#dlg-b-title").textContent = id ? "Búsqueda" : "Nueva búsqueda";
   $("#b-base").value = d.base || BASES[0]; $("#b-fecha").value = d.fecha || new Date().toLocaleDateString("sv");
   $("#b-cadena").value = d.cadena || ""; $("#b-filtros").value = d.filtros || ""; $("#b-n").value = d.n ?? "";
+  $("#b-metodo").value = Prisma.metodoDe(id ? d : { base: $("#b-base").value });
   $("#b-campos").value = d.campos || ""; $("#b-notas").value = d.notas || ""; $("#b-del").hidden = !id || !clave || !rol.admin;
   const hist = id ? [{ fecha: d.creado, accion: "Registrada" }, ...(d.actualizado && d.actualizado !== d.creado ? [{ fecha: d.actualizado, accion: "Última edición" }] : [])] : [];
   $("#b-hist").innerHTML = histHtml(hist); $("#b-hist").hidden = !id;
@@ -392,10 +402,11 @@ $("#pm-btn").onclick = async () => {
   } catch (e) { toast("No pude traer los artículos de PubMed: " + e.message, 7000) }
   finally { btn.disabled = false; btn.textContent = "Traer artículos de PubMed" }
 };
+$("#b-base").addEventListener("change", () => { $("#b-metodo").value = Prisma.OTROS_POR_DEFECTO.includes($("#b-base").value) ? "otros" : "bases" });
 $("#bl-btn").onclick = () => {
   const d = Importar.leerLink($("#bl-url").value);
   if (!d) { toast("Eso no parece un link. Copia la dirección completa de la barra del navegador."); return }
-  if (BASES.includes(d.base)) $("#b-base").value = d.base;
+  if (BASES.includes(d.base)) { $("#b-base").value = d.base; $("#b-base").dispatchEvent(new Event("change")) }
   if (d.cadena) $("#b-cadena").value = d.cadena;
   if (d.filtros) $("#b-filtros").value = d.filtros;
   $("#b-link").value = d.link; mostrarPm();
@@ -457,6 +468,27 @@ async function importarAhora() {
   } catch (e) { go.disabled = false; go.textContent = "Reintentar"; toast("No se pudo importar: " + e.message, 9000) }
 }
 
+/* ---------- Resaltado de palabras clave al cribar ---------- */
+const DEPARTAMENTOS = ["Artigas", "Canelones", "Cerro Largo", "Colonia", "Durazno", "Flores", "Florida", "Lavalleja", "Maldonado", "Montevideo", "Paysandú", "Río Negro", "Rivera", "Rocha", "Salto", "San José", "Soriano", "Tacuarembó", "Treinta y Tres"];
+const PAL_INCLUIR = "Uruguay, uruguayo, uruguaya, Montevideo, Canelones, Paysandú, Tacuarembó, Treinta y Tres, Cerro Largo, Maldonado, agua potable, agua de consumo, agua de bebida, drinking water, tap water, potable water, OSE, pozo, pozos, well water, groundwater, agua subterránea, nitrato, nitrate, arsénico, arsenic, plomo, lead, cianobacteria, cyanobacteria, microcistina, microcystin, trihalometano, salud, health";
+const PAL_EXCLUIR = "Argentina, Brasil, Brazil, Chile, Paraguay, México, ratas, ratones, rats, mice, in vitro, aguas residuales, wastewater, revisión narrativa, editorial";
+const palabras = t => String(t || "").split(/[,;\n]/).map(x => x.trim()).filter(x => x.length > 1);
+function resaltar(texto) {
+  let h = esc(texto);
+  const sinTilde = w => w.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    .replace(/a/gi, "[aá]").replace(/e/gi, "[eé]").replace(/i/gi, "[ií]").replace(/o/gi, "[oó]").replace(/u/gi, "[uúü]").replace(/n/gi, "[nñ]");
+  const marcar = (lista, clase) => {
+    const ws = palabras(lista).sort((a, b) => b.length - a.length);
+    if (!ws.length) return;
+    const re = new RegExp(`(^|[^\\p{L}])(${ws.map(sinTilde).join("|")})(?=$|[^\\p{L}])`, "giu");
+    // Solo en el texto, nunca dentro de una etiqueta ya marcada
+    h = h.split(/(<[^>]+>)/).map((t, i) => i % 2 ? t : t.replace(re, (m, a, w) => `${a}<mark class="${clase}">${w}</mark>`)).join("");
+  };
+  marcar(PROT.palabrasIncluir || PAL_INCLUIR, "mi");
+  marcar(PROT.palabrasExcluir || PAL_EXCLUIR, "mx");
+  return h;
+}
+
 /* ---------- Cribado: artículo por artículo ---------- */
 const MOTIVOS = ["No es en Uruguay", "No evalúa agua de consumo", "Sin desenlace en salud", "Diseño no elegible", "No es un estudio original", "Texto completo no disponible"];
 let cribActual = null, cribHist = [], cribSaltados = new Set();
@@ -476,7 +508,7 @@ function renderCrib() {
   $("#c-prog").textContent = (total ? `Te quedan ${total}${cribSaltados.size ? ` (${cribSaltados.size} saltados)` : ""}` : "") + (doble ? ` · Llevas ${hechas}${otro}` : "");
   $("#c-quien").textContent = doble ? `Cribando como ${rol.revisor} · doble ciego: no ves las decisiones del otro revisor` : "Cribado directo (administración): cada decisión cambia el estado enseguida";
   $("#c-si").textContent = fase === "pend" ? "✓ Pasa" : "✓ Incluir";
-  $("#c-dup").hidden = fase !== "pend";
+  $("#c-dup").hidden = fase !== "pend"; $("#c-quiza").hidden = fase !== "pend"; $("#c-nr").hidden = fase === "pend";
   const card = $("#c-card");
   if (!cribActual) {
     $("#c-btns").hidden = true;
@@ -489,10 +521,10 @@ function renderCrib() {
   $("#c-btns").hidden = false;
   const r = cribActual, link = safeUrl(r.link) || doiUrl(r.doi), uy = r.uruguay || "";
   card.innerHTML = `<div class="meta">${esc(r.codigo)}${r.base ? " · " + esc(r.base) : ""}</div>
-    <h3>${esc(r.titulo)}</h3>
+    <h3>${resaltar(r.titulo)}</h3>
     <div class="meta">${esc([r.autores, r.anio, r.revista].filter(Boolean).join(" · "))}</div>
     ${uy ? `<div class="uycheck ${/^No se detect/.test(uy) ? "warn" : "ok"}">${/^No se detect/.test(uy) ? "⚠️ " : "🇺🇾 "}${esc(uy)}</div>` : ""}
-    <div class="abs">${r.resumen ? esc(r.resumen) : '<span class="meta">Sin resumen cargado.</span>'}</div>
+    <div class="abs">${r.resumen ? resaltar(r.resumen) : '<span class="meta">Sin resumen cargado.</span>'}</div>
     <div class="links">${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">Ver en la fuente ↗</a>` : ""}${safeUrl(r.pdf) ? `<a href="${esc(r.pdf)}" target="_blank" rel="noopener">PDF ↗</a>` : ""}<a href="#" id="c-editar">Editar ficha</a></div>`;
   $("#c-editar").onclick = e => { e.preventDefault(); $("#dlg-c").close(); openR(r.codigo) };
   card.scrollTop = 0;
@@ -518,13 +550,15 @@ const fase2Excl = () => $("#c-fase").value === "pend" ? "exta" : "extc";
 function decidir(estado, motivo) {
   const r = cribActual; if (!r) return;
   if (doble) {
-    const fase = faseNum(), decision = { ft: "si", inc: "si", exta: "no", extc: "no", dup: "dup" }[estado];
+    const fase = faseNum(), decision = motivo === "__quiza" ? "quiza" : { ft: "si", inc: "si", exta: "no", extc: "no", dup: "dup", nr: "nr" }[estado];
+    if (motivo === "__quiza") motivo = "";
     mias.set(claveDec(r.codigo, fase), { codigo: r.codigo, fase: String(fase), decision, motivo: motivo || "" });
     cribHist.push({ doble: true, codigo: r.codigo, fase });
     colaCrib.push({ doble: true, codigo: r.codigo, fase, decision, motivo: motivo || "" }); procesarCola();
     cribActual = null; renderCrib(); return;
   }
-  cribHist.push({ codigo: r.codigo, estadoK: r.estadoK, estado: r.estado, motivo: r.motivo });
+  cribHist.push({ codigo: r.codigo, estadoK: r.estadoK, estado: r.estado, motivo: r.motivo, notas: r.notas });
+  if (motivo === "__quiza") { motivo = ""; r.notas = [r.notas, "Quizás en el cribado por título y resumen"].filter(Boolean).join(" · ") }
   r.estadoK = estado; r.estado = estadoLabel(estado); r.motivo = motivo || "";
   colaCrib.push({ ...r }); procesarCola();
   cribActual = null; renderCrib(); renderR(); renderP();
@@ -562,6 +596,8 @@ $("#c-no").onclick = () => { $("#c-excl").hidden = false; $("#c-motivo").value =
 $("#c-excl-ok").onclick = () => decidir(fase2Excl(), $("#c-motivo").value.trim());
 $("#c-motivo").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("#c-excl-ok").click() } });
 $("#c-dup").onclick = () => decidir("dup");
+$("#c-quiza").onclick = () => decidir("ft", "__quiza");
+$("#c-nr").onclick = () => decidir("nr", "Texto completo no disponible");
 $("#c-skip").onclick = () => { if (cribActual) { cribSaltados.add(cribActual.codigo); cribActual = null; renderCrib() } };
 function deshacer() {
   const h = cribHist.pop(); if (!h) return;
@@ -571,7 +607,7 @@ function deshacer() {
     cribActual = R.find(x => x.codigo === h.codigo) || null; renderCrib(); return;
   }
   const r = R.find(x => x.codigo === h.codigo); if (!r) return;
-  Object.assign(r, { estadoK: h.estadoK, estado: h.estado, motivo: h.motivo });
+  Object.assign(r, { estadoK: h.estadoK, estado: h.estado, motivo: h.motivo, notas: h.notas });
   colaCrib.push({ ...r }); procesarCola();
   if ($("#c-fase").value !== h.estadoK) $("#c-fase").value = h.estadoK;
   cribActual = r; renderCrib(); renderR(); renderP();
@@ -581,6 +617,7 @@ $("#dlg-c").addEventListener("keydown", e => {
   if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
   const k = e.key.toLowerCase();
   if (k === "s") $("#c-si").click(); else if (k === "n") $("#c-no").click();
+  else if (k === "q" && !$("#c-quiza").hidden) $("#c-quiza").click(); else if (k === "c" && !$("#c-nr").hidden) $("#c-nr").click();
   else if (k === "d" && !$("#c-dup").hidden) $("#c-dup").click();
   else if (k === "arrowright") $("#c-skip").click(); else if (k === "arrowleft") deshacer();
   else return;
@@ -605,11 +642,11 @@ function renderConflictos() {
     return `<div class="xcard" data-i="${i}">
       <div class="meta">${esc(c.codigo)} · Fase ${c.fase} (${c.fase === 1 ? "título y resumen" : "texto completo"})</div>
       <b>${esc(r.titulo)}</b>
-      ${r.resumen ? `<details><summary class="note">Ver resumen</summary><div class="abs">${esc(r.resumen)}</div></details>` : ""}
+      ${r.resumen ? `<details><summary class="note">Ver resumen</summary><div class="abs">${resaltar(r.resumen)}</div></details>` : ""}
       <div class="xops"><span><b>Revisor 1:</b> ${op(c.r1)}</span><span><b>Revisor 2:</b> ${op(c.r2)}</span></div>
       <label>Cómo se resuelve<select class="x-met"><option value="consenso"${tercero ? "" : " selected"}>Consenso entre Revisor 1 y Revisor 2</option><option value="tercero"${tercero ? " selected" : ""}>Decisión del Revisor 3</option></select></label>
       <input class="x-mot" list="motivos" placeholder="Motivo (si se excluye)">
-      <div class="bar"><button type="button" class="btn cok" data-d="si">✓ ${c.fase === 1 ? "Pasa" : "Incluir"}</button><button type="button" class="btn danger" data-d="no">✗ Excluir</button>${c.fase === 1 ? '<button type="button" class="btn ghost" data-d="dup">Duplicado</button>' : ""}</div>
+      <div class="bar"><button type="button" class="btn cok" data-d="si">✓ ${c.fase === 1 ? "Pasa" : "Incluir"}</button><button type="button" class="btn danger" data-d="no">✗ Excluir</button>${c.fase === 1 ? '<button type="button" class="btn ghost" data-d="dup">Duplicado</button>' : '<button type="button" class="btn ghost" data-d="nr">No se consiguió</button>'}</div>
     </div>`;
   }).join("");
   el.querySelectorAll(".xcard").forEach(card => card.querySelectorAll("button[data-d]").forEach(b => b.onclick = async () => {
@@ -636,7 +673,7 @@ async function guardar(btn, dlg, fn, okMsg) {
 $("#form-b").onsubmit = e => {
   e.preventDefault();
   const datos = { id: editB || "", base: $("#b-base").value, fecha: $("#b-fecha").value, cadena: $("#b-cadena").value.trim(), filtros: $("#b-filtros").value.trim(),
-    n: Number($("#b-n").value || 0), campos: $("#b-campos").value.trim(), notas: $("#b-notas").value.trim(), link: $("#b-link").value.trim() };
+    n: Number($("#b-n").value || 0), campos: $("#b-campos").value.trim(), notas: $("#b-notas").value.trim(), link: $("#b-link").value.trim(), metodo: $("#b-metodo").value };
   const btn = e.submitter || $('#form-b button[type="submit"]');
   const conArchivo = !!importando;
   guardar(btn, $("#dlg-b"), async () => {

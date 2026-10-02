@@ -61,7 +61,7 @@ label{display:grid;gap:4px;font-size:.85rem;color:var(--muted);font-weight:600;m
 .meta{color:var(--muted);font-size:.85rem;font-variant-numeric:tabular-nums}
 .q{font:13px/1.45 var(--f-mono);color:var(--ink);background:var(--accent-soft);border-radius:6px;padding:6px 8px;white-space:pre-wrap;word-break:break-word}
 .pill{font:600 .72rem var(--f-body);letter-spacing:.04em;text-transform:uppercase;border-radius:99px;padding:2px 9px;border:1px solid currentColor;white-space:nowrap}
-.s-pend{color:var(--muted)} .s-dup{color:var(--warn)} .s-exta,.s-extc{color:var(--bad)} .s-ft{color:var(--accent)} .s-inc{color:var(--ok)}
+.s-nr{color:var(--warn)} .s-pend{color:var(--muted)} .s-dup{color:var(--warn)} .s-exta,.s-extc{color:var(--bad)} .s-ft{color:var(--accent)} .s-inc{color:var(--ok)}
 .empty{border:1px dashed var(--line);border-radius:10px;padding:18px;color:var(--muted);text-align:left}
 dialog{border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);width:min(640px,calc(100vw - 32px));padding:0}
 dialog::backdrop{background:rgb(0 0 0 / .45)}
@@ -112,7 +112,20 @@ dialog.crib{width:min(760px,calc(100vw - 16px));max-height:calc(100vh - 16px)}
 .ccard{display:grid;gap:8px;max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:14px}
 .ccard h3{font-family:var(--f-display);font-weight:650;font-size:1.15rem;line-height:1.3;margin:0;text-wrap:balance}
 .ccard .abs{white-space:pre-wrap;line-height:1.55;max-width:70ch}
-.cbtns{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.cbtns{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+mark.mi{background:#c9f0d4;color:inherit;border-radius:3px;padding:0 2px} mark.mx{background:#f8d0cc;color:inherit;border-radius:3px;padding:0 2px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) mark.mi{background:#1f5a34} :root:not([data-theme="light"]) mark.mx{background:#6a2620}}
+:root[data-theme="dark"] mark.mi{background:#1f5a34} :root[data-theme="dark"] mark.mx{background:#6a2620}
+.diagrama{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:#fff;padding:8px}
+.diagrama svg{display:block;min-width:620px;width:100%;height:auto}
+.txtbox{display:grid;gap:6px;border:1px solid var(--line);border-radius:10px;padding:10px 14px;background:var(--surface)}
+.txtbox p{margin:0;line-height:1.6;max-width:75ch}
+.txtbox .lbl{font-size:.85rem;color:var(--muted);font-weight:600}
+.tabla{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+.tabla table{border-collapse:collapse;width:100%;min-width:640px;font-size:.88rem}
+.tabla th,.tabla td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+.tabla th{background:var(--accent-soft);font-weight:600}
+.tabla code{font:12.5px/1.45 var(--f-mono);white-space:pre-wrap;word-break:break-word}
 .cbtns .btn{padding:12px 6px}
 .btn.cok{background:var(--ok);border-color:var(--ok)}
 @media (max-width:520px){.cbtns{grid-template-columns:1fr 1fr}}
@@ -163,8 +176,21 @@ dialog.crib{width:min(760px,calc(100vw - 16px));max-height:calc(100vh - 16px)}
 
   <section class="view" id="v-prisma" hidden>
     <h2>Diagrama de flujo PRISMA 2020</h2>
-    <p class="note">Se calcula solo, a partir de los resultados de cada búsqueda y del estado de cada referencia.</p>
-    <div class="prisma" id="prisma"></div>
+    <p class="note">Se arma solo con tus búsquedas y el estado de cada referencia. Las búsquedas marcadas como «otros métodos» (Colibri, literatura gris, rastreo de citas…) van en la columna derecha.</p>
+    <div class="diagrama" id="prisma-svg"></div>
+    <div class="bar"><button class="btn" id="dl-png">Descargar imagen (PNG)</button><button class="btn ghost" id="dl-svg">Descargar SVG</button></div>
+    <div class="prisma" id="acuerdo"></div>
+
+    <h2>Texto para el artículo</h2>
+    <p class="note" id="txt-aviso" hidden></p>
+    <div class="txtbox"><div class="bar"><span class="lbl grow">Métodos</span><button class="btn ghost" data-copiar="#txt-metodos">Copiar</button></div><p id="txt-metodos"></p></div>
+    <div class="txtbox"><div class="bar"><span class="lbl grow">Resultados</span><button class="btn ghost" data-copiar="#txt-resultados">Copiar</button></div><p id="txt-resultados"></p></div>
+    <p class="note">Es un borrador armado con tus datos: revísalo y ajústalo a tu estilo y al de la revista.</p>
+
+    <h2>Estrategias de búsqueda (PRISMA-S)</h2>
+    <p class="note">Para el anexo del artículo: cada búsqueda con su fuente, fecha, estrategia completa, filtros y resultados.</p>
+    <div id="tabla-busq"></div>
+    <div class="bar"><button class="btn" id="dl-tabla-doc">Descargar para Word</button><button class="btn ghost" id="dl-tabla-csv">Descargar CSV</button></div>
   </section>
 
   <section class="view" id="v-exportar" hidden>
@@ -217,6 +243,10 @@ dialog.crib{width:min(760px,calc(100vw - 16px));max-height:calc(100vh - 16px)}
     <label>Fecha de búsqueda<input id="b-fecha" type="date" required></label>
   </div>
   <label>Cadena de búsqueda<textarea id="b-cadena" class="code" required placeholder='("drinking water"[MeSH] OR "agua potable") AND Uruguay'></textarea></label>
+  <label>Método (para el diagrama PRISMA)<select id="b-metodo">
+    <option value="bases">Bases de datos y registros</option>
+    <option value="otros">Otros métodos (repositorios, sitios web, búsqueda manual, rastreo de citas)</option>
+  </select></label>
   <label>Filtros aplicados<input id="b-filtros" placeholder="Años 2000–2026; idiomas: español, inglés, portugués"></label>
   <div class="grid2">
     <label>Resultados obtenidos<input id="b-n" type="number" min="0" inputmode="numeric" required></label>
@@ -307,11 +337,13 @@ dialog.crib{width:min(760px,calc(100vw - 16px));max-height:calc(100vh - 16px)}
   </div>
   <div class="cbtns" id="c-btns">
     <button type="button" class="btn cok" id="c-si"></button>
+    <button type="button" class="btn ghost" id="c-quiza">🤔 Quizás</button>
     <button type="button" class="btn danger" id="c-no">✗ Excluir</button>
     <button type="button" class="btn ghost" id="c-dup">Duplicado</button>
+    <button type="button" class="btn ghost" id="c-nr">No se consiguió</button>
     <button type="button" class="btn ghost" id="c-skip">Saltar ⏭</button>
   </div>
-  <span class="note ckeys">Teclado: <b>S</b> sí · <b>N</b> excluir · <b>D</b> duplicado · <b>→</b> saltar · <b>←</b> anterior</span>
+  <span class="note ckeys">Teclado: <b>S</b> sí · <b>Q</b> quizás · <b>N</b> excluir · <b>D</b> duplicado · <b>C</b> no se consiguió · <b>→</b> saltar · <b>←</b> anterior</span>
 </div></dialog>
 
 <dialog id="dlg-x" class="crib"><div class="cwrap">
@@ -322,9 +354,10 @@ dialog.crib{width:min(760px,calc(100vw - 16px));max-height:calc(100vh - 16px)}
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="config.js?v=10"></script>
-<script src="autocompletar.js?v=10"></script>
-<script src="importar.js?v=10"></script>
-<script src="app.js?v=10"></script>
+<script src="config.js?v=11"></script>
+<script src="autocompletar.js?v=11"></script>
+<script src="importar.js?v=11"></script>
+<script src="prisma.js?v=11"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>
