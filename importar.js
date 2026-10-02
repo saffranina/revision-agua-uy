@@ -386,5 +386,5 @@
     return { refs, base: "PubMed/MEDLINE", total, aviso: avisos.join(" ") };
   }
 
-  window.Importar = { leer, marcarDuplicados, leerLink, traerPubmed, traerHilo, linkHiloColibri };
+  window.Importar = { leer, marcarDuplicados, leerLink, traerPubmed, traerHilo, linkHiloColibri, claveDoi, claveTitulo };
 })();

@@ -31,7 +31,7 @@ function toast(msg, ms = 2800) { const t = $("#toast"); t.textContent = msg; t.h
 function fill(sel, opts, first) { sel.innerHTML = (first ? `<option value="">${first}</option>` : "") + opts.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("") }
 fill($("#b-base"), BASES.map(b => [b, b]));
 fill($("#r-estado"), ESTADOS);
-fill($("#f-estado"), ESTADOS, "Todos los estados");
+fill($("#f-estado"), [["", "Todos, sin duplicados"], ["todos", "Todos, con duplicados"], ...ESTADOS]);
 
 /* ---------- Nombre automático del PDF (igual que en la planilla) ---------- */
 const slug = t => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9 ]+/g, " ").trim();
@@ -134,7 +134,8 @@ function renderB() {
 function renderR() {
   const el = $("#list-r");
   const q = $("#f-text").value.trim().toLowerCase(), st = $("#f-estado").value, fb = $("#f-busq").value;
-  const rows = R.filter(r => (!st || r.estadoK === st) && (!fb || r.busqueda === fb) &&
+  const dupl = indiceDuplicados();
+  const rows = R.filter(r => (st === "todos" || (!st ? r.estadoK !== "dup" : r.estadoK === st)) && (!fb || r.busqueda === fb) &&
     (!q || [r.codigo, r.titulo, r.autores, r.doi, r.notas, r.tema, r.revista].join(" ").toLowerCase().includes(q)));
   if (!R.length) { el.innerHTML = `<div class="empty">Sin referencias todavía.${clave ? " Agrega cada artículo que salga de tus búsquedas y ve cambiando su estado a medida que lo revisas." : ""}</div>`; return }
   if (!rows.length) { el.innerHTML = `<div class="empty">Ninguna referencia coincide con el filtro.</div>`; return }
@@ -148,10 +149,27 @@ function renderR() {
       <div class="meta">${esc([r.autores, r.anio, r.revista].filter(Boolean).join(" · "))}</div>
       ${r.tema || r.motivo ? `<div class="meta">${esc([r.tema, r.motivo ? "Motivo: " + r.motivo : ""].filter(Boolean).join(" · "))}</div>` : ""}
       ${fechas ? `<div class="meta">${esc(fechas)}</div>` : ""}
+      ${dupl.de[r.codigo] ? `<div class="meta">🔁 Duplicado de <a href="#" data-ir="${esc(dupl.de[r.codigo])}">${esc(dupl.de[r.codigo])}</a></div>` : ""}
+      ${(dupl.copias[r.codigo] || []).length ? `<div class="meta">🔁 También apareció en: ${dupl.copias[r.codigo].map(d => `${esc(d.base || "otra búsqueda")}${d.fechaBusqueda ? " " + esc(fdate(d.fechaBusqueda)) : ""} (<a href="#" data-ir="${esc(d.codigo)}">${esc(d.codigo)}</a>)`).join(", ")}</div>` : ""}
       ${link || safeUrl(r.pdf) || r.resumen ? `<div class="links">${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">Ver en la fuente ↗</a>` : ""}${safeUrl(r.pdf) ? `<a href="${esc(r.pdf)}" target="_blank" rel="noopener">PDF ↗</a>` : ""}${r.resumen ? '<span class="meta">Con resumen</span>' : ""}</div>` : ""}
     </div>`}).join("");
-  el.querySelectorAll(".item a").forEach(a => a.onclick = e => e.stopPropagation());
+  el.querySelectorAll(".item a").forEach(a => a.onclick = e => { e.stopPropagation(); if (a.dataset.ir) { e.preventDefault(); openR(a.dataset.ir) } });
   el.querySelectorAll(".item").forEach(i => { i.onclick = () => openR(i.dataset.id); i.onkeydown = e => { if (e.key === "Enter" && e.target === i) openR(i.dataset.id) } });
+}
+// Une cada duplicado con su original (mismo DOI o mismo título)
+function indiceDuplicados() {
+  const orig = new Map(), de = {}, copias = {};
+  R.filter(r => r.estadoK !== "dup").forEach(r => {
+    if (r.doi) orig.set("d:" + Importar.claveDoi(r.doi), r.codigo);
+    if (r.titulo && !orig.has("t:" + Importar.claveTitulo(r.titulo))) orig.set("t:" + Importar.claveTitulo(r.titulo), r.codigo);
+  });
+  R.filter(r => r.estadoK === "dup").forEach(r => {
+    const nota = (String(r.notas || "").match(/Duplicado de (R\d+)/) || [])[1];
+    const o = (r.doi && orig.get("d:" + Importar.claveDoi(r.doi))) || orig.get("t:" + Importar.claveTitulo(r.titulo)) || nota;
+    if (!o || o === r.codigo) return;
+    de[r.codigo] = o; (copias[o] = copias[o] || []).push(r);
+  });
+  return { de, copias };
 }
 $("#f-text").oninput = renderR; $("#f-estado").onchange = renderR; $("#f-busq").onchange = renderR;
 
@@ -194,7 +212,7 @@ function lock(form) {
   form.querySelector('button[type="submit"]').hidden = ro;
 }
 function histHtml(rows) {
-  return rows.length ? `<span class="lbl">Historial (automático)</span><ol>${rows.map(h => `<li>${esc(fdt(h.fecha))}: ${esc(h.accion)}${h.detalle ? " · " + esc(h.detalle) : ""}</li>`).join("")}</ol>` : "";
+  return rows.length ? `<span class="lbl">Historial (automático)</span><ol>${rows.map(h => `<li>${h.fecha ? esc(fdt(h.fecha)) + ": " : ""}${esc(h.accion)}${h.detalle ? " · " + esc(h.detalle) : ""}</li>`).join("")}</ol>` : "";
 }
 function openB(id) {
   editB = id; const d = id ? B.find(b => b.id === id) : {};
@@ -219,7 +237,10 @@ function openR(codigo) {
   mostrarUy(uruguayAuto ? { texto: uruguayAuto, ok: !/^No /.test(uruguayAuto) } : null);
   renderPdf(d); updNombre();
   const hist = codigo ? H.filter(h => h.codigo === codigo) : [];
-  $("#r-hist").innerHTML = histHtml(hist); $("#r-hist").hidden = !hist.length;
+  const dupl = codigo ? indiceDuplicados() : { de: {}, copias: {} };
+  const extra = (dupl.copias[codigo] || []).map(d => ({ fecha: d.creado, accion: "También apareció en " + (d.base || "otra búsqueda"), detalle: d.codigo }))
+    .concat(dupl.de[codigo] ? [{ fecha: "", accion: "Duplicado de " + dupl.de[codigo], detalle: "" }] : []);
+  $("#r-hist").innerHTML = histHtml(hist.concat(extra)); $("#r-hist").hidden = !hist.length && !extra.length;
   lock($("#form-r")); $("#dlg-r").showModal();
 }
 function renderPdf(d) {
