@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#17607a">
+<meta name="theme-color" content="#b9a8ea">
 <title>Revisión Agua y Salud UY</title>
 <meta name="description" content="Registro de búsquedas, referencias y cribado PRISMA de la revisión sistemática sobre agua potable de consumo y salud en Uruguay.">
 <link rel="icon" type="image/png" href="img/logo-192.png">
@@ -12,21 +12,28 @@
 <style>html{-webkit-text-size-adjust:100%}body{margin:0}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px)}</style>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,650&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: app de una columna; barra de pestañas fija abajo en celular, arriba en compu. */
+/* Layout: app de una columna; barra de pestañas fija abajo en celular, arriba en compu.
+   Paleta tomada del logo: lavanda y violeta sobre crema, con amarillo, rosa, menta y celeste pastel. */
 :root{
-  --bg:#f3f6f6; --surface:#ffffff; --ink:#14262c; --muted:#5b6f75; --line:#d5dfe1;
-  --accent:#17607a; --accent-soft:#e1eef2; --ok:#2e7d4f; --warn:#a2610f; --bad:#a83a32;
-  --f-display:"Literata",Georgia,serif; --f-body:"Source Sans 3",system-ui,-apple-system,sans-serif;
+  --bg:#fbf6ea; --surface:#fffdf8; --ink:#3b2a5a; --muted:#7a6a92; --line:#e6dcf3;
+  --accent:#7457c0; --accent-soft:#efe8fb; --ok:#2f8a6c; --warn:#b47a0c; --bad:#c94a72;
+  --lav:#b9a8ea; --yellow:#fbefae; --pink:#f8cfe0; --mint:#c6ecdf; --sky:#d8e1fb;
+  --shadow:0 2px 0 #e6dcf3, 0 8px 24px -16px rgb(80 50 140 / .35);
+  --f-display:"Fredoka","Nunito",system-ui,sans-serif; --f-body:"Nunito",system-ui,-apple-system,sans-serif;
   --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0f1a1d; --surface:#16252a; --ink:#e3ecee; --muted:#93a8ae; --line:#2a3d43;
-  --accent:#6fb8d2; --accent-soft:#1d3a44; --ok:#6cc08e; --warn:#e0a14f; --bad:#ec8a80; color-scheme:dark}}
+  --bg:#1b1430; --surface:#251c3c; --ink:#f3edff; --muted:#b6a8d4; --line:#3c2f5e;
+  --accent:#bba6f6; --accent-soft:#33285a; --ok:#7fd3b6; --warn:#f0c36a; --bad:#f493b5;
+  --lav:#6d5aa8; --yellow:#4b4322; --pink:#4f2a40; --mint:#1f4a3f; --sky:#2a335f;
+  --shadow:0 2px 0 #3c2f5e, 0 8px 24px -16px rgb(0 0 0 / .6); color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0f1a1d; --surface:#16252a; --ink:#e3ecee; --muted:#93a8ae; --line:#2a3d43;
-  --accent:#6fb8d2; --accent-soft:#1d3a44; --ok:#6cc08e; --warn:#e0a14f; --bad:#ec8a80; color-scheme:dark}
+  --bg:#1b1430; --surface:#251c3c; --ink:#f3edff; --muted:#b6a8d4; --line:#3c2f5e;
+  --accent:#bba6f6; --accent-soft:#33285a; --ok:#7fd3b6; --warn:#f0c36a; --bad:#f493b5;
+  --lav:#6d5aa8; --yellow:#4b4322; --pink:#4f2a40; --mint:#1f4a3f; --sky:#2a335f;
+  --shadow:0 2px 0 #3c2f5e, 0 8px 24px -16px rgb(0 0 0 / .6); color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--f-body)}
 .wrap{max-width:860px;margin:0 auto;padding-inline:16px;padding-block:20px 110px}
@@ -118,8 +125,6 @@ dialog.crib{width:min(760px,calc(100vw - 16px));max-height:calc(100vh - 16px)}
 .ccard .abs{white-space:pre-wrap;line-height:1.55;max-width:70ch}
 .cbtns{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
 mark.mi{background:#c9f0d4;color:inherit;border-radius:3px;padding:0 2px} mark.ms{background:#d6e4fb;color:inherit;border-radius:3px;padding:0 2px} mark.mx{background:#f8d0cc;color:inherit;border-radius:3px;padding:0 2px}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) mark.ms{background:#25406b} :root:not([data-theme="light"]) mark.mi{background:#1f5a34} :root:not([data-theme="light"]) mark.mx{background:#6a2620}}
-:root[data-theme="dark"] mark.ms{background:#25406b} :root[data-theme="dark"] mark.mi{background:#1f5a34} :root[data-theme="dark"] mark.mx{background:#6a2620}
 .diagrama{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:#fff;padding:8px}
 .diagrama svg{display:block;min-width:620px;width:100%;height:auto}
 .txtbox{display:grid;gap:6px;border:1px solid var(--line);border-radius:10px;padding:10px 14px;background:var(--surface)}
@@ -160,6 +165,70 @@ table.sem td,table.sem th{text-align:center} table.sem td:first-child,table.sem 
 details.crit{border:1px dashed var(--line);border-radius:8px;padding:6px 10px}
 details.crit .abs{white-space:pre-wrap;font-size:.9rem;margin-bottom:6px}
 .progress{font-size:.85rem;color:var(--accent);font-weight:600}
+</style>
+<style id="tema">
+/* Diseño: tarjetas tipo sticker, botones píldora y estados en colores pastel */
+body{background:
+  radial-gradient(1200px 500px at 110% -10%, color-mix(in srgb, var(--pink) 55%, transparent), transparent 60%),
+  radial-gradient(900px 500px at -20% 10%, color-mix(in srgb, var(--sky) 60%, transparent), transparent 60%),
+  var(--bg);background-attachment:fixed}
+header.hdr{background:var(--surface);border:3px solid var(--lav);border-radius:28px;padding:14px 16px;box-shadow:var(--shadow);align-items:center}
+header h1{font-family:var(--f-display);font-weight:700;font-size:1.6rem;letter-spacing:-.01em;color:var(--ink)}
+header p{color:var(--muted)}
+.logo{width:84px;height:84px;filter:drop-shadow(0 4px 8px rgb(116 87 192 / .25))}
+@media (max-width:420px){.logo{width:62px;height:62px} header h1{font-size:1.3rem}}
+.mode{font:700 .82rem var(--f-body);border-radius:999px;border:2px solid var(--line);background:var(--surface);padding:6px 14px}
+.mode.on{color:var(--ok);border-color:var(--mint);background:color-mix(in srgb, var(--mint) 40%, var(--surface))}
+h2{font-family:var(--f-display);font-weight:600;font-size:1.25rem;color:var(--ink)}
+h2::before{content:"✦ ";color:#e48bb2}
+dialog h2::before,header h2::before{content:none}
+nav.tabs{background:color-mix(in srgb, var(--surface) 92%, transparent);backdrop-filter:blur(8px);border-top:2px solid var(--line)}
+nav.tabs button{font:700 .8rem var(--f-body);border-radius:999px;margin:6px 2px;padding:9px 12px;border-top:0}
+nav.tabs button[aria-selected="true"]{color:var(--accent);background:var(--accent-soft)}
+@media (min-width:760px){
+  nav.tabs{border:2px solid var(--line);border-radius:999px;padding:4px;box-shadow:var(--shadow)}
+  nav.tabs button{margin:0;border-bottom:0;font-size:.92rem}
+  nav.tabs button[aria-selected="true"]{background:var(--accent);color:var(--surface)}
+}
+.btn{font:700 .92rem var(--f-body);border-radius:999px;border:2px solid var(--accent);padding:9px 18px;box-shadow:0 3px 0 color-mix(in srgb, var(--accent) 55%, #000 0%);transition:transform .08s ease, box-shadow .08s ease}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--accent)}
+.btn.ghost{background:var(--surface);border-color:var(--lav);color:var(--accent);box-shadow:0 3px 0 var(--line)}
+.btn.danger{background:var(--surface);border-color:color-mix(in srgb, var(--bad) 60%, var(--surface));box-shadow:0 3px 0 var(--pink)}
+.btn.cok{background:var(--ok);border-color:var(--ok);color:#fff;box-shadow:0 3px 0 color-mix(in srgb, var(--ok) 60%, #000)}
+.btn:disabled{opacity:.6;cursor:progress}
+input,select,textarea{border:2px solid var(--line);border-radius:14px;background:var(--surface)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--lav);box-shadow:0 0 0 4px var(--accent-soft)}
+label{color:var(--muted);font-weight:700}
+.item{border:2px solid var(--line);border-radius:20px;padding:14px 16px;box-shadow:var(--shadow)}
+.item:hover{border-color:var(--lav);transform:translateY(-1px)}
+.item.nohover:hover{transform:none}
+@media (prefers-reduced-motion:no-preference){.item{transition:transform .12s ease, border-color .12s ease}}
+.item .t{font-weight:800}
+.pill{border:0;font:800 .68rem var(--f-body);padding:4px 10px;color:var(--ink)}
+.pill.s-pend{background:var(--sky)} .pill.s-ft{background:var(--accent-soft);color:var(--accent)} .pill.s-inc{background:var(--mint);color:var(--ok)}
+.pill.s-exta,.pill.s-extc{background:var(--pink);color:var(--bad)} .pill.s-dup,.pill.s-nr{background:var(--yellow);color:var(--warn)}
+.pill.rb{background:var(--mint)} .pill.rm{background:var(--yellow)} .pill.ra,.pill.rv{background:var(--pink)} .pill.rs{background:var(--line)}
+.q{background:var(--accent-soft);border-radius:12px;padding:8px 10px}
+.empty{border:2px dashed var(--lav);border-radius:20px;background:color-mix(in srgb, var(--surface) 70%, transparent);padding:20px}
+dialog{border:3px solid var(--lav);border-radius:26px;box-shadow:0 30px 60px -20px rgb(60 30 120 / .45)}
+dialog::backdrop{background:rgb(59 42 90 / .45);backdrop-filter:blur(3px)}
+.autobox{background:linear-gradient(135deg, var(--accent-soft), color-mix(in srgb, var(--sky) 60%, var(--surface)));border-radius:18px;padding:12px 14px}
+.pdfbox,.dom,.txtbox,.xcard,.ccard{border-radius:18px;border-width:2px}
+.ccard{border:2px solid var(--line);background:var(--surface)}
+.hist{border-radius:16px}
+.uycheck{border-radius:14px;border-width:2px}
+.toast{background:var(--accent);color:var(--surface);border-radius:999px;padding:10px 18px;font-weight:700;box-shadow:var(--shadow)}
+.tabla{border:2px solid var(--line);border-radius:18px;background:var(--surface)}
+.tabla th{background:var(--accent-soft);color:var(--ink)}
+.diagrama{border:2px solid var(--line);border-radius:18px}
+.box{border-radius:16px;border-width:2px}
+.stage{color:var(--accent)}
+.chips button{border:2px solid var(--line);border-radius:999px;font-weight:700}
+.links a{color:var(--accent)}
+mark.mi{background:var(--mint)} mark.ms{background:var(--sky)} mark.mx{background:var(--pink)}
+.mapa .t0{fill:var(--surface);stroke:var(--line);stroke-width:2} .mapa .t1{fill:#ece5fb} .mapa .t2{fill:#cbbcf2} .mapa .t3{fill:#9f86e0} .mapa .t4{fill:#7457c0}
+.mapa .tn{font:700 11px var(--f-body)} .mapa .tc{font:600 20px var(--f-display)}
+.mapa .t1 ~ text,.mapa .t2 ~ text{fill:#3b2a5a}
 </style>
 </head>
 <body>
@@ -425,11 +494,11 @@ details.crit .abs{white-space:pre-wrap;font-size:.9rem;margin-bottom:6px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="config.js?v=15"></script>
-<script src="autocompletar.js?v=15"></script>
-<script src="importar.js?v=15"></script>
-<script src="prisma.js?v=15"></script>
-<script src="app.js?v=15"></script>
-<script src="estudios.js?v=15"></script>
+<script src="config.js?v=16"></script>
+<script src="autocompletar.js?v=16"></script>
+<script src="importar.js?v=16"></script>
+<script src="prisma.js?v=16"></script>
+<script src="app.js?v=16"></script>
+<script src="estudios.js?v=16"></script>
 </body>
 </html>

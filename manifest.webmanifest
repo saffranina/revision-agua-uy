@@ -3,8 +3,8 @@
   "short_name": "Revisión Agua",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#faf6ec",
-  "theme_color": "#17607a",
+  "background_color": "#fbf6ea",
+  "theme_color": "#b9a8ea",
   "lang": "es",
   "icons": [
     {

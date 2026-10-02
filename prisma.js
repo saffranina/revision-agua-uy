@@ -96,10 +96,10 @@
       if (r3 && inc) svg += `<polyline points="${r3.x + r3.w / 2},${r3.y + r3.h} ${r3.x + r3.w / 2},${inc.y + inc.h / 2} ${inc.x + inc.w + 2},${inc.y + inc.h / 2}" fill="none" stroke="#333333" stroke-width="1.4" marker-end="url(#f)"/>`;
     }
     // Encabezados y etapas
-    const enc = (x, w, t) => `<rect x="${x}" y="14" width="${w}" height="40" rx="6" fill="#f6d77a" stroke="#333333"/><text x="${x + w / 2}" y="38" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#111111">${esc(t)}</text>`;
+    const enc = (x, w, t) => `<rect x="${x}" y="14" width="${w}" height="40" rx="6" fill="#fbefae" stroke="#3b2a5a"/><text x="${x + w / 2}" y="38" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#111111">${esc(t)}</text>`;
     let cab = enc(44, 560, "Identificación de estudios a través de bases de datos y registros");
     if (hayOtros) cab += enc(640, 390, "Identificación de estudios a través de otros métodos");
-    const etapa = (y1, y2, t) => `<rect x="6" y="${y1}" width="26" height="${y2 - y1}" rx="5" fill="#bcd6ee" stroke="#333333"/><text transform="translate(23 ${(y1 + y2) / 2}) rotate(-90)" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#111111">${t}</text>`;
+    const etapa = (y1, y2, t) => `<rect x="6" y="${y1}" width="26" height="${y2 - y1}" rx="5" fill="#e3dafa" stroke="#3b2a5a"/><text transform="translate(23 ${(y1 + y2) / 2}) rotate(-90)" font-size="12.5" font-weight="bold" text-anchor="middle" fill="#111111">${t}</text>`;
     const r0 = caja("lm", 0), r1 = caja("lm", 1), r3 = caja("lm", 3), r4 = caja("lm", 4);
     const etapas = etapa(r0.y, r0.y + r0.h, "Identificación") + etapa(r1.y, r3.y + r3.h, "Cribado") + etapa(r4.y, r4.y + r4.h, "Incluidos");
     const H = y + 6;
