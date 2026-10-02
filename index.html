@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#17607a">
+<title>Revisión Agua y Salud UY</title>
+<meta name="description" content="Registro de búsquedas, referencias y cribado PRISMA de la revisión sistemática sobre agua potable de consumo y salud en Uruguay.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3C11 10 7 15 7 20a9 9 0 0 0 18 0c0-5-4-10-9-17z' fill='%2317607a'/%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.webmanifest">
+<style>html{-webkit-text-size-adjust:100%}body{margin:0}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px)}</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,650&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: app de una columna; barra de pestañas fija abajo en celular, arriba en compu. */
+:root{
+  --bg:#f3f6f6; --surface:#ffffff; --ink:#14262c; --muted:#5b6f75; --line:#d5dfe1;
+  --accent:#17607a; --accent-soft:#e1eef2; --ok:#2e7d4f; --warn:#a2610f; --bad:#a83a32;
+  --f-display:"Literata",Georgia,serif; --f-body:"Source Sans 3",system-ui,-apple-system,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1a1d; --surface:#16252a; --ink:#e3ecee; --muted:#93a8ae; --line:#2a3d43;
+  --accent:#6fb8d2; --accent-soft:#1d3a44; --ok:#6cc08e; --warn:#e0a14f; --bad:#ec8a80; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1a1d; --surface:#16252a; --ink:#e3ecee; --muted:#93a8ae; --line:#2a3d43;
+  --accent:#6fb8d2; --accent-soft:#1d3a44; --ok:#6cc08e; --warn:#e0a14f; --bad:#ec8a80; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--f-body)}
+.wrap{max-width:860px;margin:0 auto;padding-inline:16px;padding-block:20px 110px}
+header h1{font-family:var(--f-display);font-weight:650;font-size:1.55rem;line-height:1.2;margin:0;text-wrap:balance}
+header p{margin:.25rem 0 0;color:var(--muted);font-size:.92rem}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav.tabs button{flex:1;border:0;background:none;color:var(--muted);font:600 .82rem var(--f-body);padding:12px 4px;cursor:pointer;border-top:3px solid transparent}
+nav.tabs button[aria-selected="true"]{color:var(--accent);border-top-color:var(--accent)}
+@media (min-width:760px){
+  nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);bottom:auto;border:1px solid var(--line);border-radius:10px;margin-top:16px;padding:0;overflow:hidden}
+  nav.tabs button{border-top:0;border-bottom:3px solid transparent;font-size:.92rem}
+  nav.tabs button[aria-selected="true"]{border-bottom-color:var(--accent)}
+  .wrap{padding-bottom:40px}
+}
+section.view{display:grid;gap:14px;margin-top:18px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.bar .grow{flex:1 1 180px;min-width:0}
+h2{font-family:var(--f-display);font-weight:650;font-size:1.15rem;margin:0}
+.btn{font:600 .92rem var(--f-body);border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:var(--surface);padding:9px 14px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.danger{background:transparent;color:var(--bad);border-color:var(--bad)}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,nav.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input,select,textarea{width:100%;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 10px}
+textarea{min-height:84px;resize:vertical}
+textarea.code{font:14px/1.45 var(--f-mono)}
+label{display:grid;gap:4px;font-size:.85rem;color:var(--muted);font-weight:600;min-width:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.list{display:grid;gap:10px}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:6px;min-width:0;cursor:pointer}
+.item:hover{border-color:var(--accent)}
+.item .top{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.item .t{font-weight:600;flex:1 1 220px;min-width:0}
+.meta{color:var(--muted);font-size:.85rem;font-variant-numeric:tabular-nums}
+.q{font:13px/1.45 var(--f-mono);color:var(--ink);background:var(--accent-soft);border-radius:6px;padding:6px 8px;white-space:pre-wrap;word-break:break-word}
+.pill{font:600 .72rem var(--f-body);letter-spacing:.04em;text-transform:uppercase;border-radius:99px;padding:2px 9px;border:1px solid currentColor;white-space:nowrap}
+.s-pend{color:var(--muted)} .s-dup{color:var(--warn)} .s-exta,.s-extc{color:var(--bad)} .s-ft{color:var(--accent)} .s-inc{color:var(--ok)}
+.empty{border:1px dashed var(--line);border-radius:10px;padding:18px;color:var(--muted);text-align:left}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);width:min(640px,calc(100vw - 32px));padding:0}
+dialog::backdrop{background:rgb(0 0 0 / .45)}
+dialog form{display:grid;gap:12px;padding:18px}
+dialog .actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+dialog .actions .left{margin-right:auto}
+.prisma{display:grid;gap:8px}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+.box b{font:500 1.15rem var(--f-mono);font-variant-numeric:tabular-nums}
+.box.side{margin-left:28px;border-style:dashed}
+.stage{font:600 .75rem var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:6px}
+.reasons{margin:4px 0 0;padding-left:18px;color:var(--muted);font-size:.88rem}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:8px;font-size:.9rem;z-index:20;max-width:calc(100vw - 32px)}
+.note{font-size:.88rem;color:var(--muted)}
+.pdfbox{display:grid;gap:6px;border:1px dashed var(--line);border-radius:8px;padding:10px 12px}
+.pdfbox .lbl,.hist .lbl{font-size:.85rem;color:var(--muted);font-weight:600}
+.filebtn{display:inline-block;justify-self:start;color:var(--accent);font-size:.92rem}
+.links{display:flex;flex-wrap:wrap;gap:12px;font-size:.88rem}
+.links a{color:var(--accent);font-weight:600;text-decoration:none}
+.links a:hover{text-decoration:underline}
+.hist{display:grid;gap:4px;background:var(--accent-soft);border-radius:8px;padding:10px 12px}
+.hist ol{margin:0;padding-left:18px;font-size:.88rem;font-variant-numeric:tabular-nums}
+.exbadge{font:600 .7rem var(--f-body);color:var(--warn);text-transform:uppercase;letter-spacing:.05em}
+@media (prefers-reduced-motion:no-preference){.item{transition:border-color .15s}}
+</style>
+<style>
+.hdr{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.hdr>div{flex:1 1 240px;min-width:0}
+.mode{font:600 .8rem var(--f-body);border-radius:99px;padding:5px 12px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer}
+.mode.on{color:var(--ok);border-color:var(--ok)}
+.status{font-size:.82rem;color:var(--muted);margin-top:6px}
+body:not(.editing) .edit-only{display:none!important}
+details summary{cursor:pointer}
+.progress{font-size:.85rem;color:var(--accent);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hdr">
+    <div>
+      <h1>Agua potable y salud en Uruguay</h1>
+      <p>Registro de la revisión sistemática: búsquedas, referencias y cribado PRISMA.</p>
+      <div class="status" id="status">Cargando…</div>
+    </div>
+    <button class="mode" id="mode" type="button">🔒 Solo lectura</button>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="busquedas" aria-selected="true">Búsquedas</button>
+    <button role="tab" data-tab="referencias" aria-selected="false">Referencias</button>
+    <button role="tab" data-tab="prisma" aria-selected="false">PRISMA</button>
+    <button role="tab" data-tab="exportar" aria-selected="false">Exportar</button>
+  </nav>
+
+  <section class="view" id="v-busquedas">
+    <div class="bar"><h2 class="grow">Búsquedas realizadas</h2><button class="btn edit-only" id="add-b">+ Nueva búsqueda</button></div>
+    <div class="list" id="list-b"><div class="empty">Cargando búsquedas…</div></div>
+  </section>
+
+  <section class="view" id="v-referencias" hidden>
+    <div class="bar"><h2 class="grow">Referencias</h2><button class="btn edit-only" id="add-r">+ Nueva referencia</button></div>
+    <div class="bar">
+      <input class="grow" id="f-text" type="search" placeholder="Buscar por código, título, autor, DOI o nota">
+      <select id="f-estado" style="flex:0 1 220px"></select>
+    </div>
+    <div class="list" id="list-r"></div>
+  </section>
+
+  <section class="view" id="v-prisma" hidden>
+    <h2>Diagrama de flujo PRISMA 2020</h2>
+    <p class="note">Se calcula solo, a partir de los resultados de cada búsqueda y del estado de cada referencia.</p>
+    <div class="prisma" id="prisma"></div>
+  </section>
+
+  <section class="view" id="v-exportar" hidden>
+    <h2>Exportar</h2>
+    <p class="note">Todos los datos ya están en la planilla de Google Sheets. Desde aquí también puedes descargarlos para Excel, R, Zotero, Mendeley o Rayyan.</p>
+    <div class="bar">
+      <button class="btn" data-exp="busquedas.csv">Búsquedas (CSV)</button>
+      <button class="btn" data-exp="referencias.csv">Referencias (CSV)</button>
+      <button class="btn ghost" data-exp="referencias.ris">Referencias (RIS)</button>
+    </div>
+    <div class="links edit-only"><a href="https://docs.google.com/spreadsheets/d/1vYzfLeBfaEk6mMVLodGAxhOadvLE8UeEpc02mqaDPsE/edit" target="_blank" rel="noopener">Abrir la planilla ↗</a>
+      <a href="https://drive.google.com/drive/folders/1sB-_4FoQSWPAnWYZSVaQNwWpsCvfies3" target="_blank" rel="noopener">Abrir la carpeta de Drive ↗</a></div>
+  </section>
+</div>
+
+<dialog id="dlg-k"><form id="form-k">
+  <h2>Modo edición</h2>
+  <p class="note">Escribe la clave que pusiste en el código de la planilla. Queda guardada en este dispositivo.</p>
+  <label>Clave<input id="k-clave" type="password" autocomplete="current-password" required></label>
+  <div class="actions">
+    <button type="button" class="btn danger left" id="k-salir" hidden>Salir del modo edición</button>
+    <button type="button" class="btn ghost" data-close>Cancelar</button>
+    <button class="btn" type="submit">Entrar</button>
+  </div>
+</form></dialog>
+
+<dialog id="dlg-b"><form id="form-b">
+  <h2 id="dlg-b-title">Nueva búsqueda</h2>
+  <div class="grid2">
+    <label>Base de datos<select id="b-base" required></select></label>
+    <label>Fecha de búsqueda<input id="b-fecha" type="date" required></label>
+  </div>
+  <label>Cadena de búsqueda<textarea id="b-cadena" class="code" required placeholder='("drinking water"[MeSH] OR "agua potable") AND Uruguay'></textarea></label>
+  <label>Filtros aplicados<input id="b-filtros" placeholder="Años 2000–2026; idiomas: español, inglés, portugués"></label>
+  <div class="grid2">
+    <label>Resultados obtenidos<input id="b-n" type="number" min="0" inputmode="numeric" required></label>
+    <label>Campos buscados<input id="b-campos" placeholder="Título/resumen, MeSH, todos los campos"></label>
+  </div>
+  <label>Notas<textarea id="b-notas"></textarea></label>
+  <div id="b-hist" class="hist" hidden></div>
+  <div class="actions">
+    <button type="button" class="btn danger left" id="b-del" hidden>Eliminar</button>
+    <button type="button" class="btn ghost" data-close>Cerrar</button>
+    <button class="btn" type="submit">Guardar</button>
+  </div>
+</form></dialog>
+
+<dialog id="dlg-r"><form id="form-r">
+  <h2 id="dlg-r-title">Nueva referencia</h2>
+  <label>Título<textarea id="r-titulo" required style="min-height:60px"></textarea></label>
+  <label>Autores<input id="r-autores" placeholder="Apellido A, Apellido B"></label>
+  <div class="grid2">
+    <label>Año<input id="r-anio" type="number" min="1900" max="2100" inputmode="numeric"></label>
+    <label>Revista / fuente<input id="r-revista"></label>
+  </div>
+  <div class="grid2">
+    <label>DOI<input id="r-doi" placeholder="10.xxxx/…"></label>
+    <label>Encontrada en<select id="r-busqueda"></select></label>
+  </div>
+  <label>Link de la fuente (LILACS, PubMed, SciELO, revista…)<input id="r-link" type="url" inputmode="url" placeholder="https://…"></label>
+  <label>Resumen publicado<textarea id="r-resumen" style="min-height:120px" placeholder="Pega aquí el abstract"></textarea></label>
+  <div class="pdfbox">
+    <span class="lbl">PDF del artículo</span>
+    <div class="bar" id="pdf-cur"></div>
+    <div class="edit-only" style="display:grid;gap:6px">
+      <label class="btn ghost filebtn">Subir PDF<input id="r-pdf" type="file" accept="application/pdf,.pdf" hidden></label>
+      <span class="note">Se guarda solo en tu Drive («2 - PDFs ordenados») con el nombre:</span>
+      <code class="q" id="r-nombre">Se genera al completar autor, año y título</code>
+      <details><summary class="note">O pega un link de Drive</summary>
+        <label style="margin-top:6px">Link al PDF<input id="r-drive" type="url" inputmode="url" placeholder="https://drive.google.com/file/d/…"></label></details>
+    </div>
+  </div>
+  <div class="grid2">
+    <label>Estado del cribado<select id="r-estado"></select></label>
+    <label>Motivo de exclusión<input id="r-motivo" list="motivos" placeholder="Solo si se excluye"></label>
+  </div>
+  <datalist id="motivos">
+    <option value="No es en Uruguay"><option value="No evalúa agua de consumo"><option value="Sin desenlace en salud">
+    <option value="Diseño no elegible"><option value="Texto completo no disponible">
+  </datalist>
+  <label>Exposición / contaminante<input id="r-tema" list="temas" placeholder="Ej.: nitratos, arsénico, cianotoxinas"></label>
+  <datalist id="temas">
+    <option value="Microbiológico"><option value="Nitratos"><option value="Arsénico"><option value="Plomo"><option value="Cianobacterias / cianotoxinas">
+    <option value="Agroquímicos"><option value="Flúor"><option value="Trihalometanos"><option value="Calidad organoléptica">
+  </datalist>
+  <label>Notas<textarea id="r-notas"></textarea></label>
+  <div id="r-hist" class="hist" hidden></div>
+  <div class="actions">
+    <button type="button" class="btn danger left" id="r-del" hidden>Eliminar</button>
+    <button type="button" class="btn ghost" data-close>Cerrar</button>
+    <button class="btn" type="submit" id="r-save">Guardar</button>
+  </div>
+</form></dialog>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

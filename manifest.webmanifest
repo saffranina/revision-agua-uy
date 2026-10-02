@@ -1,0 +1,10 @@
+{
+  "name": "Revisión Agua y Salud UY",
+  "short_name": "Revisión Agua",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f3f6f6",
+  "theme_color": "#17607a",
+  "lang": "es",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
