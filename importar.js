@@ -214,5 +214,48 @@
     });
   }
 
-  window.Importar = { leer, marcarDuplicados, leerLink };
+  // Traduce los filtros de la web de PubMed a la sintaxis de búsqueda
+  function filtroPubmed(f) {
+    let m;
+    if ((m = f.match(/^years\.(\d{4})-(\d{4})$/))) return `("${m[1]}/01/01"[dp] : "${m[2]}/12/31"[dp])`;
+    if ((m = f.match(/^lang\.(\w+)$/))) return `${m[1]}[la]`;
+    if ((m = f.match(/^pubt\.(\w+)$/))) return `"${m[1].replace(/([a-z])([A-Z])/g, "$1 $2")}"[pt]`;
+    if (f === "simsearch2.ffrft" || f === "ffrft") return "free full text[sb]";
+    if (f === "simsearch1.fha" || f === "fha") return "hasabstract";
+    if (f === "simsearch3.fft" || f === "fft") return "full text[sb]";
+    if (f === "hum_ani.humans") return "humans[mh]";
+    if (f === "hum_ani.animal") return "animals[mh]";
+    return null;
+  }
+
+  async function traerPubmed(link, progreso) {
+    const u = new URL(link), p = u.searchParams;
+    const term = p.get("term");
+    if (!term) throw new Error("el link no trae la búsqueda");
+    const filtros = p.getAll("filter"), sinTraducir = [];
+    const partes = [`(${term})`];
+    filtros.forEach(f => { const t = filtroPubmed(f); t ? partes.push(t) : sinTraducir.push(f) });
+    const consulta = partes.join(" AND ");
+    const eu = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/";
+    progreso("Buscando en PubMed…");
+    const r = await fetch(`${eu}esearch.fcgi?db=pubmed&retmode=json&retmax=10000&term=${encodeURIComponent(consulta)}`);
+    if (!r.ok) throw new Error("PubMed no respondió (" + r.status + ")");
+    const j = await r.json();
+    const ids = (j.esearchresult && j.esearchresult.idlist) || [], total = Number(j.esearchresult && j.esearchresult.count) || 0;
+    if (!ids.length) return { refs: [], base: "PubMed/MEDLINE", total, aviso: "PubMed no devolvió resultados para esta búsqueda." };
+    const refs = [];
+    for (let i = 0; i < ids.length; i += 200) {
+      progreso(`Trayendo ${Math.min(i + 200, ids.length)} de ${ids.length}…`);
+      const x = await fetch(`${eu}efetch.fcgi?db=pubmed&retmode=xml&id=${ids.slice(i, i + 200).join(",")}`);
+      if (!x.ok) throw new Error("PubMed cortó la descarga (" + x.status + ")");
+      refs.push(...xml(await x.text()).filter(r => r.titulo));
+      await new Promise(ok => setTimeout(ok, 400)); // PubMed pide no más de 3 pedidos por segundo
+    }
+    const avisos = [];
+    if (sinTraducir.length) avisos.push(`No pude aplicar estos filtros de la web: ${sinTraducir.join(", ")}. Compara la cantidad con la que ves en PubMed.`);
+    if (total > ids.length) avisos.push(`La búsqueda tiene ${total} resultados; solo se pueden traer 10.000 por vez.`);
+    return { refs, base: "PubMed/MEDLINE", total, aviso: avisos.join(" ") };
+  }
+
+  window.Importar = { leer, marcarDuplicados, leerLink, traerPubmed };
 })();

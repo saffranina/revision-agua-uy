@@ -24,7 +24,7 @@ const store = {
   set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v) } catch (e) { } },
 };
 
-let pdfAbierto = "", uruguayAuto = "";
+let pdfAbierto = "", uruguayAuto = "", colaCrib = [];
 let B = [], R = [], H = [], clave = store.get("clave") || "", editB = null, editR = null, pdfFile = null, cargando = false;
 
 function toast(msg, ms = 2800) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => t.hidden = true, ms) }
@@ -45,7 +45,7 @@ function proximoCodigo() { const n = R.map(r => parseInt(String(r.codigo).slice(
 /* ---------- Conexión con la planilla ---------- */
 async function cargar(silencioso) {
   if (!window.API_URL) { $("#status").textContent = "Falta conectar la planilla (ver README)."; renderAll(); return }
-  if (cargando) return; cargando = true;
+  if (cargando || colaCrib.length) return; cargando = true;
   if (!silencioso) $("#status").textContent = "Actualizando…";
   try {
     let r;
@@ -126,13 +126,15 @@ function renderB() {
       <div class="top"><span class="t">${esc(b.base)}</span><span class="meta">${esc(fdate(b.fecha))} · ${Number(b.n || 0).toLocaleString("es-UY")} resultados · ${nref} ref.</span></div>
       <div class="q">${esc(b.cadena)}</div>
       ${b.filtros ? `<div class="meta">Filtros: ${esc(b.filtros)}</div>` : ""}
+      ${safeUrl(b.link) ? `<div class="links"><a href="${esc(b.link)}" target="_blank" rel="noopener">Ver resultados ↗</a></div>` : ""}
     </div>`}).join("");
+  el.querySelectorAll(".item a").forEach(a => a.onclick = e => e.stopPropagation());
   el.querySelectorAll(".item").forEach(i => { i.onclick = () => openB(i.dataset.id); i.onkeydown = e => { if (e.key === "Enter") openB(i.dataset.id) } });
 }
 function renderR() {
   const el = $("#list-r");
-  const q = $("#f-text").value.trim().toLowerCase(), st = $("#f-estado").value;
-  const rows = R.filter(r => (!st || r.estadoK === st) &&
+  const q = $("#f-text").value.trim().toLowerCase(), st = $("#f-estado").value, fb = $("#f-busq").value;
+  const rows = R.filter(r => (!st || r.estadoK === st) && (!fb || r.busqueda === fb) &&
     (!q || [r.codigo, r.titulo, r.autores, r.doi, r.notas, r.tema, r.revista].join(" ").toLowerCase().includes(q)));
   if (!R.length) { el.innerHTML = `<div class="empty">Sin referencias todavía.${clave ? " Agrega cada artículo que salga de tus búsquedas y ve cambiando su estado a medida que lo revisas." : ""}</div>`; return }
   if (!rows.length) { el.innerHTML = `<div class="empty">Ninguna referencia coincide con el filtro.</div>`; return }
@@ -151,7 +153,7 @@ function renderR() {
   el.querySelectorAll(".item a").forEach(a => a.onclick = e => e.stopPropagation());
   el.querySelectorAll(".item").forEach(i => { i.onclick = () => openR(i.dataset.id); i.onkeydown = e => { if (e.key === "Enter" && e.target === i) openR(i.dataset.id) } });
 }
-$("#f-text").oninput = renderR; $("#f-estado").onchange = renderR;
+$("#f-text").oninput = renderR; $("#f-estado").onchange = renderR; $("#f-busq").onchange = renderR;
 
 function renderP() {
   const ident = B.reduce((s, b) => s + Number(b.n || 0), 0);
@@ -179,6 +181,10 @@ function renderP() {
 function renderAll() {
   renderB(); renderR(); renderP();
   fill($("#r-busqueda"), B.map(b => [b.id, `${b.base} · ${fdate(b.fecha)}`]), "Sin asociar");
+  const fb = $("#f-busq").value;
+  fill($("#f-busq"), B.map(b => [b.id, `${b.base} · ${fdate(b.fecha)}`]), "Todas las búsquedas");
+  $("#f-busq").value = B.some(b => b.id === fb) ? fb : "";
+  if ($("#dlg-c").open) renderCrib();
 }
 
 /* ---------- Diálogos ---------- */
@@ -199,6 +205,7 @@ function openB(id) {
   const hist = id ? [{ fecha: d.creado, accion: "Registrada" }, ...(d.actualizado && d.actualizado !== d.creado ? [{ fecha: d.actualizado, accion: "Última edición" }] : [])] : [];
   $("#b-hist").innerHTML = histHtml(hist); $("#b-hist").hidden = !id;
   $("#bl-url").value = ""; $("#imp-file").value = ""; $("#imp-res").hidden = true; importando = null;
+  $("#b-link").value = d.link || ((String(d.notas || "").match(/Link de resultados: (\S+)/) || [])[1] || ""); mostrarPm();
   lock($("#form-b")); $("#dlg-b").showModal();
 }
 function openR(codigo) {
@@ -285,22 +292,27 @@ $("#auto-in").addEventListener("keydown", e => { if (e.key === "Enter") { e.prev
 let importando = null;
 $("#imp-file").onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
-  const res = $("#imp-res"); res.hidden = false;
   let leido;
   try { leido = Importar.leer(await f.text()) }
-  catch (err) { res.innerHTML = `<span class="uycheck warn">No reconozco el formato de «${esc(f.name)}». Usa el formato PubMed, RIS o XML.</span>`; importando = null; return }
+  catch (err) { $("#imp-res").hidden = false; $("#imp-res").innerHTML = `<span class="uycheck warn">No reconozco el formato de «${esc(f.name)}». Usa el formato PubMed, RIS o XML.</span>`; importando = null; return }
+  const nombres = { ris: "RIS", pubmed: "PubMed", xml: "XML de PubMed", dc: "XML de repositorio" };
+  mostrarImportacion(f.name, `en el archivo (${nombres[leido.formato]})`, leido);
+};
+// Muestra el resumen de lo que se va a importar y lo deja listo para guardar
+function mostrarImportacion(origen, donde, leido, aviso) {
+  const res = $("#imp-res"); res.hidden = false;
   const refs = Importar.marcarDuplicados(leido.refs, R).map(r => {
     const c = Autocompletar.chequeoUruguay(r);
     return { ...r, uruguay: textoUy(c), esUy: c.afUy || c.menciona };
   });
   const dups = refs.filter(r => r.duplicadoDe).length, uy = refs.filter(r => r.esUy).length;
-  importando = { archivo: f.name, refs };
-  // Completa la búsqueda con lo que dice el archivo
-  if (!editB || !Number($("#b-n").value)) $("#b-n").value = refs.length;
+  importando = { archivo: origen, refs };
+  // Completa la búsqueda con lo que trae el archivo
+  if (!editB || !Number($("#b-n").value)) $("#b-n").value = leido.total ?? refs.length;
   if (leido.base && !editB) $("#b-base").value = leido.base;
-  const nombres = { ris: "RIS", pubmed: "PubMed", xml: "XML de PubMed", dc: "XML de repositorio" };
-  res.innerHTML = `<span><b>${refs.length}</b> artículos en el archivo (${nombres[leido.formato]}).</span>
-    <span>${refs.length - dups} nuevos · ${dups} duplicados${dups ? " (ya estaban en el registro o repetidos en el archivo)" : ""}.</span>
+  res.innerHTML = `<span><b>${refs.length}</b> artículos ${donde}.</span>
+    ${aviso ? `<span class="uycheck warn">${esc(aviso)}</span>` : ""}
+    <span>${refs.length - dups} nuevos · ${dups} duplicados${dups ? " (ya estaban en el registro o repetidos)" : ""}.</span>
     <span>🇺🇾 ${uy} con autores de Uruguay o que mencionan Uruguay.</span>
     ${dups ? `<label><input type="checkbox" id="imp-dups" checked> Registrar los duplicados con estado «Duplicado» (cuentan en PRISMA)</label>` : ""}
     ${editB ? `<button type="button" class="btn" id="imp-go">Importar</button>` : `<span class="note" id="imp-go-nota"></span>`}`;
@@ -313,6 +325,15 @@ $("#imp-file").onchange = async e => {
   if (chk) chk.onchange = etiqueta;
   etiqueta();
   if (go) { if (!refs.length) go.hidden = true; go.onclick = () => importarAhora() }
+}
+// PubMed deja pedir los resultados de una búsqueda: los traemos con el link
+$("#pm-btn").onclick = async () => {
+  const btn = $("#pm-btn"); btn.disabled = true;
+  try {
+    const leido = await Importar.traerPubmed($("#b-link").value, t => btn.textContent = t);
+    mostrarImportacion("PubMed (link)", "traídos de PubMed", leido, leido.aviso);
+  } catch (e) { toast("No pude traer los artículos de PubMed: " + e.message, 7000) }
+  finally { btn.disabled = false; btn.textContent = "Traer artículos de PubMed" }
 };
 $("#bl-btn").onclick = () => {
   const d = Importar.leerLink($("#bl-url").value);
@@ -320,11 +341,12 @@ $("#bl-btn").onclick = () => {
   if (BASES.includes(d.base)) $("#b-base").value = d.base;
   if (d.cadena) $("#b-cadena").value = d.cadena;
   if (d.filtros) $("#b-filtros").value = d.filtros;
-  const notas = $("#b-notas").value.replace(/\n?Link de resultados: \S+/, "").trim();
-  $("#b-notas").value = (notas ? notas + "\n" : "") + "Link de resultados: " + d.link;
+  $("#b-link").value = d.link; mostrarPm();
   toast(d.cadena ? `Listo: ${d.base}${d.filtros ? ", con filtros" : ""}. Revisa los campos y completa la cantidad de resultados si no adjuntas archivo.`
     : `Reconocí ${d.base}, pero el link no trae la búsqueda escrita. Cópiala a mano en «Cadena de búsqueda».`, 6000);
 };
+function mostrarPm() { $("#pm-btn").hidden = !/pubmed\.ncbi\.nlm\.nih\.gov\/.*term=/i.test($("#b-link").value) }
+$("#b-link").addEventListener("input", mostrarPm);
 $("#bl-url").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("#bl-btn").click() } });
 // Carga los artículos del archivo en la búsqueda indicada (de a 50 por pedido)
 async function importarA(busqueda, progreso) {
@@ -356,6 +378,102 @@ async function importarAhora() {
   } catch (e) { go.disabled = false; go.textContent = "Reintentar"; toast("No se pudo importar: " + e.message, 9000) }
 }
 
+/* ---------- Cribado: artículo por artículo ---------- */
+const MOTIVOS = ["No es en Uruguay", "No evalúa agua de consumo", "Sin desenlace en salud", "Diseño no elegible", "No es un estudio original", "Texto completo no disponible"];
+let cribActual = null, cribHist = [], cribSaltados = new Set();
+function colaFase() {
+  const fase = $("#c-fase").value, fb = $("#f-busq").value;
+  return R.filter(r => r.estadoK === fase && (!fb || r.busqueda === fb) && !cribSaltados.has(r.codigo))
+    .sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)));
+}
+function renderCrib() {
+  const fase = $("#c-fase").value, cola = colaFase();
+  const total = R.filter(r => r.estadoK === fase && (!$("#f-busq").value || r.busqueda === $("#f-busq").value)).length;
+  if (!cribActual || cribActual.estadoK !== fase || cribSaltados.has(cribActual.codigo)) cribActual = cola[0] || null;
+  else cribActual = R.find(r => r.codigo === cribActual.codigo) || cola[0] || null;
+  $("#c-excl").hidden = true; $("#c-undo").hidden = !cribHist.length;
+  $("#c-prog").textContent = total ? `Quedan ${total} ${fase === "pend" ? "pendientes de cribado" : "a texto completo"}${cribSaltados.size ? ` · ${cribSaltados.size} saltados` : ""}` : "";
+  $("#c-si").textContent = fase === "pend" ? "✓ Pasa" : "✓ Incluir";
+  $("#c-dup").hidden = fase !== "pend";
+  const card = $("#c-card");
+  if (!cribActual) {
+    $("#c-btns").hidden = true;
+    card.innerHTML = `<div class="empty">${cribSaltados.size ? `No quedan más, salvo ${cribSaltados.size} que saltaste. <button type="button" class="btn ghost" id="c-reset">Volver a ver los saltados</button>`
+      : fase === "pend" ? "¡No quedan artículos pendientes de cribado! 🎉" : "No hay artículos esperando la lectura a texto completo."}</div>`;
+    const rs = $("#c-reset"); if (rs) rs.onclick = () => { cribSaltados.clear(); renderCrib() };
+    return;
+  }
+  $("#c-btns").hidden = false;
+  const r = cribActual, link = safeUrl(r.link) || doiUrl(r.doi), uy = r.uruguay || "";
+  card.innerHTML = `<div class="meta">${esc(r.codigo)}${r.base ? " · " + esc(r.base) : ""}</div>
+    <h3>${esc(r.titulo)}</h3>
+    <div class="meta">${esc([r.autores, r.anio, r.revista].filter(Boolean).join(" · "))}</div>
+    ${uy ? `<div class="uycheck ${/^No se detect/.test(uy) ? "warn" : "ok"}">${/^No se detect/.test(uy) ? "⚠️ " : "🇺🇾 "}${esc(uy)}</div>` : ""}
+    <div class="abs">${r.resumen ? esc(r.resumen) : '<span class="meta">Sin resumen cargado.</span>'}</div>
+    <div class="links">${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">Ver en la fuente ↗</a>` : ""}${safeUrl(r.pdf) ? `<a href="${esc(r.pdf)}" target="_blank" rel="noopener">PDF ↗</a>` : ""}<a href="#" id="c-editar">Editar ficha</a></div>`;
+  $("#c-editar").onclick = e => { e.preventDefault(); $("#dlg-c").close(); openR(r.codigo) };
+  card.scrollTop = 0;
+}
+function abrirCrib() {
+  cribSaltados.clear(); cribHist = []; cribActual = null;
+  $("#c-fase").value = R.some(r => r.estadoK === "pend") || !R.some(r => r.estadoK === "ft") ? "pend" : "ft";
+  $("#c-motivos").innerHTML = MOTIVOS.map(m => `<button type="button">${esc(m)}</button>`).join("");
+  $("#c-motivos").querySelectorAll("button").forEach(b => b.onclick = () => decidir(fase2Excl(), b.textContent));
+  renderCrib(); actualizarGuardado(); $("#dlg-c").showModal();
+}
+const fase2Excl = () => $("#c-fase").value === "pend" ? "exta" : "extc";
+function decidir(estado, motivo) {
+  const r = cribActual; if (!r) return;
+  cribHist.push({ codigo: r.codigo, estadoK: r.estadoK, estado: r.estado, motivo: r.motivo });
+  r.estadoK = estado; r.estado = estadoLabel(estado); r.motivo = motivo || "";
+  colaCrib.push({ ...r }); procesarCola();
+  cribActual = null; renderCrib(); renderR(); renderP();
+}
+async function procesarCola() {
+  if (procesarCola.activo) return; procesarCola.activo = true;
+  while (colaCrib.length) {
+    actualizarGuardado();
+    const r = colaCrib[0];
+    try {
+      await api("guardarReferencia", { codigo: r.codigo, titulo: r.titulo, autores: r.autores, anio: r.anio, revista: r.revista, doi: r.doi,
+        link: r.link, resumen: r.resumen, busqueda: r.busqueda, estado: r.estadoK, motivo: r.motivo, tema: r.tema, notas: r.notas, uruguay: r.uruguay });
+      colaCrib.shift();
+    } catch (e) {
+      toast("No se pudo guardar " + r.codigo + ": " + e.message + ". Reintento en unos segundos.", 5000);
+      await new Promise(ok => setTimeout(ok, 5000));
+    }
+  }
+  procesarCola.activo = false; actualizarGuardado(); cargar(true);
+}
+function actualizarGuardado() { $("#c-guard").textContent = colaCrib.length ? `Guardando ${colaCrib.length}…` : "✓ Todo guardado" }
+$("#crib-btn").onclick = abrirCrib;
+$("#c-cerrar").onclick = () => $("#dlg-c").close();
+$("#c-fase").onchange = () => { cribActual = null; cribSaltados.clear(); renderCrib() };
+$("#c-si").onclick = () => decidir($("#c-fase").value === "pend" ? "ft" : "inc");
+$("#c-no").onclick = () => { $("#c-excl").hidden = false; $("#c-motivo").value = ""; $("#c-excl").scrollIntoView({ block: "nearest" }) };
+$("#c-excl-ok").onclick = () => decidir(fase2Excl(), $("#c-motivo").value.trim());
+$("#c-motivo").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("#c-excl-ok").click() } });
+$("#c-dup").onclick = () => decidir("dup");
+$("#c-skip").onclick = () => { if (cribActual) { cribSaltados.add(cribActual.codigo); cribActual = null; renderCrib() } };
+function deshacer() {
+  const h = cribHist.pop(); if (!h) return;
+  const r = R.find(x => x.codigo === h.codigo); if (!r) return;
+  Object.assign(r, { estadoK: h.estadoK, estado: h.estado, motivo: h.motivo });
+  colaCrib.push({ ...r }); procesarCola();
+  if ($("#c-fase").value !== h.estadoK) $("#c-fase").value = h.estadoK;
+  cribActual = r; renderCrib(); renderR(); renderP();
+}
+$("#c-undo").onclick = deshacer;
+$("#dlg-c").addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+  const k = e.key.toLowerCase();
+  if (k === "s") $("#c-si").click(); else if (k === "n") $("#c-no").click();
+  else if (k === "d" && !$("#c-dup").hidden) $("#c-dup").click();
+  else if (k === "arrowright") $("#c-skip").click(); else if (k === "arrowleft") deshacer();
+  else return;
+  e.preventDefault();
+});
+
 $("#add-b").onclick = () => openB(null);
 $("#add-r").onclick = () => openR(null);
 
@@ -368,7 +486,7 @@ async function guardar(btn, dlg, fn, okMsg) {
 $("#form-b").onsubmit = e => {
   e.preventDefault();
   const datos = { id: editB || "", base: $("#b-base").value, fecha: $("#b-fecha").value, cadena: $("#b-cadena").value.trim(), filtros: $("#b-filtros").value.trim(),
-    n: Number($("#b-n").value || 0), campos: $("#b-campos").value.trim(), notas: $("#b-notas").value.trim() };
+    n: Number($("#b-n").value || 0), campos: $("#b-campos").value.trim(), notas: $("#b-notas").value.trim(), link: $("#b-link").value.trim() };
   const btn = e.submitter || $('#form-b button[type="submit"]');
   const conArchivo = !!importando;
   guardar(btn, $("#dlg-b"), async () => {

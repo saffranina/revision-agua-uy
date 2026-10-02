@@ -40,7 +40,7 @@ const HOJAS = {
     ['id', 'ID'], ['base', 'Base de datos'], ['fecha', 'Fecha de búsqueda'],
     ['cadena', 'Cadena de búsqueda'], ['filtros', 'Filtros'], ['campos', 'Campos buscados'],
     ['n', 'Resultados'], ['notas', 'Notas'],
-    ['creado', 'Registrada el'], ['actualizado', 'Última edición'],
+    ['creado', 'Registrada el'], ['actualizado', 'Última edición'], ['link', 'Link de resultados'],
   ],
   Referencias: [
     ['codigo', 'Código'], ['titulo', 'Título'], ['autores', 'Autores'], ['anio', 'Año'],
@@ -105,7 +105,7 @@ function guardarBusqueda_(d) {
   const reg = {
     id: d.id || 'B' + Utilities.getUuid().slice(0, 8),
     base: d.base, fecha: d.fecha, cadena: d.cadena, filtros: d.filtros, campos: d.campos,
-    n: Number(d.n) || 0, notas: d.notas,
+    n: Number(d.n) || 0, notas: d.notas, link: d.link || '',
     creado: previo.creado || ahora, actualizado: ahora,
   };
   escribirFila_(hoja, fila, reg);
@@ -264,6 +264,12 @@ function hoja_(nombre) {
     hoja.setFrozenRows(1);
     // Todo como texto para que Sheets no cambie fechas ni códigos
     hoja.getRange(2, 1, hoja.getMaxRows() - 1, cols.length).setNumberFormat('@');
+  } else if (hoja.getLastColumn() < cols.length) {
+    // Columnas nuevas agregadas en una actualización: se suman al final
+    const desde = hoja.getLastColumn() + 1;
+    hoja.getRange(1, desde, 1, cols.length - desde + 1).setValues([cols.slice(desde - 1).map((c) => c[1])])
+      .setFontWeight('bold').setBackground('#e1eef2');
+    hoja.getRange(2, desde, hoja.getMaxRows() - 1, cols.length - desde + 1).setNumberFormat('@');
   }
   return hoja;
 }

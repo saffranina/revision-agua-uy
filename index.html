@@ -102,6 +102,22 @@ details summary{cursor:pointer}
 .oa{display:grid;gap:4px;font-size:.9rem}
 .oa label{display:flex;gap:8px;align-items:center;font-weight:400;color:var(--ink);font-size:.9rem}
 .oa input{width:auto}
+dialog.crib{width:min(760px,calc(100vw - 16px));max-height:calc(100vh - 16px)}
+.cwrap{display:grid;gap:12px;padding:16px}
+.cprog{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.ccard{display:grid;gap:8px;max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:14px}
+.ccard h3{font-family:var(--f-display);font-weight:650;font-size:1.15rem;line-height:1.3;margin:0;text-wrap:balance}
+.ccard .abs{white-space:pre-wrap;line-height:1.55;max-width:70ch}
+.cbtns{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.cbtns .btn{padding:12px 6px}
+.btn.cok{background:var(--ok);border-color:var(--ok)}
+@media (max-width:520px){.cbtns{grid-template-columns:1fr 1fr}}
+.cexcl{display:grid;gap:8px;border:1px solid var(--bad);border-radius:10px;padding:10px 12px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{font:600 .82rem var(--f-body);border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:99px;padding:6px 10px;cursor:pointer}
+.chips button:hover{border-color:var(--bad);color:var(--bad)}
+.ckeys{display:none}
+@media (hover:hover){.ckeys{display:block}}
 .progress{font-size:.85rem;color:var(--accent);font-weight:600}
 </style>
 </head>
@@ -129,10 +145,13 @@ details summary{cursor:pointer}
   </section>
 
   <section class="view" id="v-referencias" hidden>
-    <div class="bar"><h2 class="grow">Referencias</h2><button class="btn edit-only" id="add-r">+ Nueva referencia</button></div>
+    <div class="bar"><h2 class="grow">Referencias</h2>
+      <button class="btn edit-only" id="crib-btn">▶ Cribar</button>
+      <button class="btn ghost edit-only" id="add-r">+ Agregar a mano</button></div>
     <div class="bar">
       <input class="grow" id="f-text" type="search" placeholder="Buscar por código, título, autor, DOI o nota">
       <select id="f-estado" style="flex:0 1 220px"></select>
+      <select id="f-busq" style="flex:0 1 220px"></select>
     </div>
     <div class="list" id="list-r"></div>
   </section>
@@ -177,7 +196,8 @@ details summary{cursor:pointer}
     </div>
     <span class="note">Copia la dirección de la barra del navegador mientras ves los resultados (PubMed, BVS/LILACS, SciELO, Colibri, Google Scholar…). De ahí saco la base, la búsqueda y los filtros.</span>
     <label class="btn ghost filebtn">Adjuntar archivo de resultados<input id="imp-file" type="file" accept=".txt,.nbib,.ris,.xml,text/plain,application/xml,text/xml" hidden></label>
-    <span class="note">PubMed (Save → Format: PubMed), RIS o XML. Cuento los resultados y cargo los artículos.</span>
+    <span class="note">PubMed (Save → Format: PubMed), RIS o XML. Cuento los resultados y cargo los artículos. Con un link de PubMed no hace falta archivo: toca «Traer artículos de PubMed».</span>
+    <button type="button" class="btn ghost" id="pm-btn" hidden>Traer artículos de PubMed</button>
     <div id="imp-res" class="oa" hidden></div>
   </div>
   <div class="grid2">
@@ -190,6 +210,7 @@ details summary{cursor:pointer}
     <label>Resultados obtenidos<input id="b-n" type="number" min="0" inputmode="numeric" required></label>
     <label>Campos buscados<input id="b-campos" placeholder="Título/resumen, MeSH, todos los campos"></label>
   </div>
+  <label>Link de resultados<input id="b-link" type="url" inputmode="url" placeholder="https://…"></label>
   <label>Notas<textarea id="b-notas"></textarea></label>
   <div id="b-hist" class="hist" hidden></div>
   <div class="actions">
@@ -256,11 +277,35 @@ details summary{cursor:pointer}
   </div>
 </form></dialog>
 
+<dialog id="dlg-c" class="crib"><div class="cwrap">
+  <div class="bar">
+    <select id="c-fase" class="grow" style="flex:1 1 200px">
+      <option value="pend">Fase 1 · Título y resumen</option>
+      <option value="ft">Fase 2 · Texto completo</option>
+    </select>
+    <button type="button" class="btn ghost" id="c-cerrar">Cerrar</button>
+  </div>
+  <div class="cprog"><span id="c-prog"></span><span><button type="button" class="btn ghost" id="c-undo" style="padding:3px 10px" hidden>↩ Deshacer</button> <span id="c-guard"></span></span></div>
+  <div id="c-card" class="ccard"></div>
+  <div id="c-excl" class="cexcl" hidden>
+    <span class="lbl">Motivo de exclusión</span>
+    <div class="chips" id="c-motivos"></div>
+    <div class="bar"><input class="grow" id="c-motivo" placeholder="U otro motivo…"><button type="button" class="btn danger" id="c-excl-ok">Excluir</button></div>
+  </div>
+  <div class="cbtns" id="c-btns">
+    <button type="button" class="btn cok" id="c-si"></button>
+    <button type="button" class="btn danger" id="c-no">✗ Excluir</button>
+    <button type="button" class="btn ghost" id="c-dup">Duplicado</button>
+    <button type="button" class="btn ghost" id="c-skip">Saltar ⏭</button>
+  </div>
+  <span class="note ckeys">Teclado: <b>S</b> sí · <b>N</b> excluir · <b>D</b> duplicado · <b>→</b> saltar · <b>←</b> anterior</span>
+</div></dialog>
+
 <div class="toast" id="toast" hidden></div>
 
-<script src="config.js?v=5"></script>
-<script src="autocompletar.js?v=5"></script>
-<script src="importar.js?v=5"></script>
-<script src="app.js?v=5"></script>
+<script src="config.js?v=6"></script>
+<script src="autocompletar.js?v=6"></script>
+<script src="importar.js?v=6"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
