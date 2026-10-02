@@ -133,7 +133,7 @@ $("#form-k").onsubmit = async e => {
     rol = j.rol || { admin: true, revisor: "" };
     store.set("clave", k); store.set("rol", JSON.stringify(rol)); $("#dlg-k").close();
     toast("Entraste como " + [rol.revisor, rol.admin ? "administración" : ""].filter(Boolean).join(" y ")); contarConflictos();
-    if (typeof cargarComentarios === "function") { cargarComentarios(); cargarAlertas() }
+    if (typeof cargarComentarios === "function") cargarComentarios();
   }
   catch (err) { clave = prev; toast(err.message === "Clave incorrecta." ? "Clave incorrecta." : err.message, 9000) }
   setModo();

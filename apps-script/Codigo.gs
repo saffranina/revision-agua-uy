@@ -35,12 +35,6 @@ const PDFS_PUBLICOS = false;
 
 const ZONA = 'America/Montevideo';
 
-// Página pública (para los mails de alertas)
-const PAGINA = 'https://saffranina.github.io/revision-agua-uy/';
-
-// Mail para las alertas semanales. Vacío = el mail de la cuenta dueña de la planilla.
-const ALERTAS_MAIL = '';
-
 const ESTADOS = {
   pend: 'Pendiente de cribado',
   dup: 'Duplicado',
@@ -169,9 +163,6 @@ function doPost(e) {
         borrarFila_('Grade', 'id', d.id); return json_({ ok: true });
       case 'comentarios': return json_({ ok: true, comentarios: hojaObjetos_('Comentarios') });
       case 'comentar': return json_({ ok: true, ...comentar_(rol, d) });
-      case 'alertas':
-        if (!rol.admin) throw new Error('Las alertas las maneja quien administra.');
-        return json_({ ok: true, ...alertasAccion_(d.que) });
       case 'exportarTodo':
         if (!rol.admin) throw new Error('El paquete completo lo baja quien administra.');
         return json_({ ok: true, decisiones: hojaObjetos_('Decisiones'), comentarios: hojaObjetos_('Comentarios') });
@@ -525,148 +516,6 @@ function comentar_(rol, d) {
   return { codigo: d.codigo };
 }
 
-/* ---------- Alertas semanales de artículos nuevos ---------- */
-
-function alertasAccion_(que) {
-  const activas = () => ScriptApp.getProjectTriggers().some((t) => t.getHandlerFunction() === 'revisarAlertas');
-  if (que === 'activar') {
-    if (!activas()) ScriptApp.newTrigger('revisarAlertas').timeBased().everyWeeks(1).onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(8).create();
-    return { activas: true };
-  }
-  if (que === 'desactivar') {
-    ScriptApp.getProjectTriggers().filter((t) => t.getHandlerFunction() === 'revisarAlertas').forEach((t) => ScriptApp.deleteTrigger(t));
-    return { activas: false };
-  }
-  if (que === 'probar') return { activas: activas(), resultado: revisarAlertas(true) };
-  const p = PropertiesService.getScriptProperties();
-  return { activas: activas(), ultima: p.getProperty('ultimaAlerta') || '' };
-}
-
-// Se ejecuta sola cada lunes a las 8 (o desde la página con «Probar ahora»)
-function revisarAlertas(desdePagina) {
-  const props = PropertiesService.getScriptProperties();
-  const hoy = Utilities.formatDate(new Date(), ZONA, 'yyyy-MM-dd');
-  const ultima = props.getProperty('ultimaAlerta');
-  const busquedas = hojaObjetos_('Busquedas').filter((b) => !/^Alerta automática/.test(b.notas || ''));
-  const vistos = new Set();
-  const refs = hojaObjetos_('Referencias');
-  const conocidas = new Set();
-  refs.forEach((r) => { if (r.doi) conocidas.add('d:' + String(r.doi).toLowerCase()); if (r.titulo) conocidas.add('t:' + claveTitulo_(r.titulo)); });
-  const resumen = [];
-  busquedas.forEach((b) => {
-    const link = String(b.link || '');
-    if (!link || vistos.has(link)) return;
-    vistos.add(link);
-    let nuevos = [];
-    try {
-      if (/pubmed\.ncbi\.nlm\.nih\.gov\/.*term=/i.test(link)) nuevos = alertaPubmed_(link, ultima || b.fecha);
-      else if (/colibri\.udelar/i.test(link)) nuevos = alertaColibri_(link);
-      else return;
-    } catch (err) { resumen.push({ base: b.base, error: String(err.message || err) }); return; }
-    nuevos = nuevos.filter((r) => {
-      const kd = r.doi ? 'd:' + r.doi.toLowerCase() : null, kt = 't:' + claveTitulo_(r.titulo);
-      if ((kd && conocidas.has(kd)) || conocidas.has(kt)) return false;
-      if (kd) conocidas.add(kd); conocidas.add(kt);
-      return true;
-    });
-    if (!nuevos.length) { resumen.push({ base: b.base, nuevos: 0 }); return; }
-    nuevos.forEach((r) => { r.uruguay = chequeoUy_(r); });
-    const id = guardarBusqueda_({
-      base: b.base, fecha: hoy, cadena: b.cadena, filtros: b.filtros, campos: b.campos, n: nuevos.length, link,
-      metodo: b.metodo, notas: 'Alerta automática semanal (actualización de ' + b.id + ' desde ' + (ultima || b.fecha) + ').',
-    });
-    importarReferencias_({ busqueda: id, archivo: 'Alerta automática', referencias: nuevos });
-    resumen.push({ base: b.base, nuevos: nuevos.length, titulos: nuevos.slice(0, 10).map((r) => r.titulo), uy: nuevos.filter((r) => !/^No se detect/.test(r.uruguay)).length });
-  });
-  props.setProperty('ultimaAlerta', hoy);
-  const total = resumen.reduce((s, x) => s + (x.nuevos || 0), 0);
-  if (total > 0) {
-    const para = ALERTAS_MAIL || Session.getEffectiveUser().getEmail();
-    const html = '<h2>Revisión: agua potable y salud en Uruguay</h2><p>Hay <b>' + total + '</b> artículo' + (total === 1 ? '' : 's') + ' nuevo' + (total === 1 ? '' : 's') + ' para cribar:</p>' +
-      resumen.filter((x) => x.nuevos).map((x) => '<h3>' + x.base + ' (' + x.nuevos + ', ' + x.uy + ' relacionados con Uruguay)</h3><ul>' + x.titulos.map((t) => '<li>' + t + '</li>').join('') + '</ul>').join('') +
-      '<p><a href="' + PAGINA + '">Abrir la página para cribarlos</a></p>';
-    if (para) MailApp.sendEmail({ to: para, subject: '🐰 ' + total + ' artículo' + (total === 1 ? '' : 's') + ' nuevo' + (total === 1 ? '' : 's') + ' para tu revisión', htmlBody: html });
-  }
-  return { total, resumen, desde: ultima || '(fecha de cada búsqueda)' };
-}
-
-function claveTitulo_(t) {
-  return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
-}
-function limpiaXml_(t) {
-  return String(t || '').replace(/<[^>]+>/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
-    .replace(/&#x([0-9a-f]+);/gi, (m, h) => String.fromCharCode(parseInt(h, 16))).replace(/&#(\d+);/g, (m, n) => String.fromCharCode(Number(n)))
-    .replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
-}
-function chequeoUy_(r) {
-  const af = /urugua|montevideo/i.test(r.afiliaciones || '');
-  const men = /urugua|montevideo|canelones|paysand|tacuaremb|treinta y tres|cerro largo|maldonado|lavalleja|soriano|santa luc[ií]a|laguna del sauce/i.test((r.titulo || '') + ' ' + (r.resumen || ''));
-  if (af) return 'Autores con afiliación en Uruguay.' + (men ? ' Menciona Uruguay en título o resumen.' : '');
-  if (men) return 'Menciona Uruguay en el título o el resumen (sin afiliación uruguaya detectada).';
-  return 'No se detectó Uruguay en las afiliaciones ni en el título o el resumen. Revisa si cumple el criterio de inclusión.';
-}
-
-// Filtros de la web de PubMed traducidos a la sintaxis de búsqueda
-function filtroPubmed_(f) {
-  let m;
-  if ((m = f.match(/^years\.(\d{4})-(\d{4})$/))) return '("' + m[1] + '/01/01"[dp] : "' + m[2] + '/12/31"[dp])';
-  if ((m = f.match(/^lang\.(\w+)$/))) return m[1] + '[la]';
-  if (f === 'hum_ani.humans') return 'humans[mh]';
-  return null;
-}
-function alertaPubmed_(link, desde) {
-  const p = {};
-  link.split('?')[1].split('&').forEach((kv) => { const [k, v] = kv.split('='); const val = decodeURIComponent((v || '').replace(/\+/g, ' ')); (p[k] = p[k] || []).push(val); });
-  const partes = ['(' + p.term[0] + ')'].concat((p.filter || []).map(filtroPubmed_).filter(Boolean));
-  const eu = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/';
-  const fecha = String(desde).slice(0, 10).replace(/-/g, '/');
-  const hoy = Utilities.formatDate(new Date(), ZONA, 'yyyy/MM/dd');
-  const j = JSON.parse(UrlFetchApp.fetch(eu + 'esearch.fcgi?db=pubmed&retmode=json&retmax=500&datetype=edat&mindate=' + fecha + '&maxdate=' + hoy +
-    '&term=' + encodeURIComponent(partes.join(' AND '))).getContentText());
-  const ids = (j.esearchresult && j.esearchresult.idlist) || [];
-  const out = [];
-  for (let i = 0; i < ids.length; i += 100) {
-    const xml = UrlFetchApp.fetch(eu + 'efetch.fcgi?db=pubmed&retmode=xml&id=' + ids.slice(i, i + 100).join(',')).getContentText();
-    out.push(...parsePubmed_(xml));
-    Utilities.sleep(400);
-  }
-  return out;
-}
-function parsePubmed_(xml) {
-  return xml.split(/<PubmedArticle>/).slice(1).map((a) => {
-    const g = (re) => { const m = a.match(re); return m ? limpiaXml_(m[1]) : ''; };
-    const pmid = g(/<PMID[^>]*>(\d+)<\/PMID>/);
-    return {
-      titulo: g(/<ArticleTitle[^>]*>([\s\S]*?)<\/ArticleTitle>/).replace(/\.$/, ''),
-      resumen: Array.from(a.matchAll(/<AbstractText([^>]*)>([\s\S]*?)<\/AbstractText>/g)).map((m) => { const l = (m[1].match(/Label="([^"]+)"/) || [])[1]; return (l ? l + ': ' : '') + limpiaXml_(m[2]); }).join(' '),
-      autores: Array.from(a.matchAll(/<Author[ >][\s\S]*?<\/Author>/g)).map((m) => { const ln = (m[0].match(/<LastName>([\s\S]*?)<\/LastName>/) || [])[1]; const ini = (m[0].match(/<Initials>([\s\S]*?)<\/Initials>/) || [])[1]; return ln ? limpiaXml_(ln) + (ini ? ' ' + ini : '') : ''; }).filter(Boolean).join(', '),
-      anio: g(/<PubDate>[\s\S]*?<Year>(\d{4})<\/Year>/) || g(/<MedlineDate>(\d{4})/),
-      revista: g(/<Journal>[\s\S]*?<Title>([\s\S]*?)<\/Title>/),
-      doi: g(/<ArticleId IdType="doi">([\s\S]*?)<\/ArticleId>/),
-      link: pmid ? 'https://pubmed.ncbi.nlm.nih.gov/' + pmid + '/' : '',
-      afiliaciones: Array.from(a.matchAll(/<Affiliation>([\s\S]*?)<\/Affiliation>/g)).map((m) => limpiaXml_(m[1])).join(' | '),
-    };
-  }).filter((r) => r.titulo);
-}
-function alertaColibri_(link) {
-  const u = link.split('?'), q = {};
-  (u[1] || '').split('&').forEach((kv) => { const [k, v] = kv.split('='); q[k] = decodeURIComponent((v || '').replace(/\+/g, ' ')); });
-  const texto = q.query || q.q;
-  if (!texto) return [];
-  const base = /\/jspui\//.test(u[0]) ? u[0].replace(/\/jspui\/.*$/, '/jspui/open-search/') : u[0].replace(/^(https?:\/\/[^/]+).*$/, '$1/server/opensearch/search');
-  const xml = UrlFetchApp.fetch(base + '?format=atom&rpp=100&start=0&query=' + encodeURIComponent(texto), { muteHttpExceptions: true }).getContentText();
-  return xml.split(/<entry[\s>]/).slice(1).map((e) => {
-    const g = (re) => { const m = e.match(re); return m ? limpiaXml_(m[1]) : ''; };
-    const doi = (e.match(/10\.\d{4,9}\/[^\s"<>]+/) || [''])[0];
-    return {
-      titulo: g(/<title[^>]*>([\s\S]*?)<\/title>/), link: (e.match(/<link[^>]*href="([^"]+)"/) || [])[1] || '',
-      autores: Array.from(e.matchAll(/<(?:name|dc:creator)>([\s\S]*?)<\/(?:name|dc:creator)>/g)).map((m) => limpiaXml_(m[1])).join('; '),
-      anio: (g(/<(?:updated|published|dc:date)>([\s\S]*?)</) .match(/\d{4}/) || [''])[0],
-      resumen: g(/<(?:summary|content)[^>]*>([\s\S]*?)<\/(?:summary|content)>/), doi, revista: '', afiliaciones: '',
-    };
-  }).filter((r) => r.titulo);
-}
-
 function hojaObjetos_(nombre) {
   const hoja = hoja_(nombre);
   const filas = hoja.getLastRow() - 1;
@@ -781,8 +630,4 @@ function prepararPlanilla() {
   const sobrante = SpreadsheetApp.openById(PLANILLA).getSheetByName('Hoja 1') || SpreadsheetApp.openById(PLANILLA).getSheetByName('Sheet1');
   if (sobrante && SpreadsheetApp.openById(PLANILLA).getSheets().length > 1) SpreadsheetApp.openById(PLANILLA).deleteSheet(sobrante);
   DriveApp.getFolderById(CARPETA_PDFS).getName();
-  // Pide de una vez los permisos de las alertas (mail, tareas programadas, internet)
-  PropertiesService.getScriptProperties().getProperty('ultimaAlerta');
-  ScriptApp.getProjectTriggers();
-  MailApp.getRemainingDailyQuota();
 }

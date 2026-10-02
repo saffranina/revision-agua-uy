@@ -1,4 +1,4 @@
-// Inicio (panel de avance y «¿qué sigue?»), guía y glosario, alertas semanales,
+// Inicio (panel de avance y «¿qué sigue?»), guía y glosario,
 // checklist PRISMA 2020, comentarios entre revisores, paquete de reproducibilidad
 // y cribado sin conexión. Usa los datos y funciones globales de app.js.
 
@@ -49,7 +49,6 @@ function renderInicio() {
   });
   $("#graf-exp").innerHTML = barras(Object.entries(exp).sort((a, b) => b[1] - a[1]), "Estudios incluidos por exposición");
   renderSigue();
-  renderAlertas();
 }
 
 /* ---------- ¿Qué sigue? ---------- */
@@ -67,8 +66,8 @@ function renderSigue() {
   if (sinVer) pasos.push(["✅", `Verifica ${sinVer} extracción${sinVer === 1 ? "" : "es"}`, "La otra persona revisa que los datos estén bien copiados.", "estudios"]);
   if (sinSes) pasos.push(["🚦", `Evalúa el riesgo de sesgo de ${sinSes} estudio${sinSes === 1 ? "" : "s"}`, "Con ROBINS-E, dominio por dominio.", "estudios"]);
   if (incl.length && !GRADE.length) pasos.push(["⭐", "Evalúa la certeza de la evidencia (GRADE)", "Una fila por cada resultado en salud importante.", "estudios"]);
-  const viejas = B.filter(b => b.fecha && (Date.now() - new Date(b.fecha + "T12:00:00")) / 864e5 > 180 && !/^Alerta automática/.test(b.notas || ""));
-  if (viejas.length) pasos.push(["🔄", "Actualiza las búsquedas", `Hay ${viejas.length} búsqueda${viejas.length === 1 ? "" : "s"} de hace más de 6 meses. Las revistas piden búsquedas recientes.`, "busquedas"]);
+  const viejas = B.filter(b => b.fecha && (Date.now() - new Date(b.fecha + "T12:00:00")) / 864e5 > 180);
+  if (viejas.length) pasos.push(["🔄", "Actualiza las búsquedas", `Hay ${viejas.length} búsqueda${viejas.length === 1 ? "" : "s"} de hace más de 6 meses. Las revistas piden búsquedas recientes: ábrela y toca «🔄 Actualizar esta búsqueda».`, "busquedas"]);
   if (!pasos.length) pasos.push(["🎉", "¡Todo al día!", "Descarga el diagrama PRISMA, el texto de métodos, el checklist y el paquete de reproducibilidad para enviar el artículo.", "prisma"]);
   $("#sigue").innerHTML = pasos.slice(0, 3).map(([ic, t, d, tab, acc], i) => `<div class="paso${i ? "" : " uno"}"><span class="ic">${ic}</span><div><b>${esc(t)}</b><p>${esc(d)}</p></div>
     <button class="btn ${i ? "ghost" : ""}" data-ir="${tab}" data-acc="${acc || ""}">Ir</button></div>`).join("");
@@ -78,37 +77,6 @@ function renderSigue() {
     if (clave && b.dataset.acc === "conf") $("#conf-btn").click();
   });
 }
-
-/* ---------- Alertas semanales ---------- */
-let ALERTAS = null;
-async function cargarAlertas() {
-  if (!clave || !rol || !rol.admin) return;
-  try { ALERTAS = await api("alertas", { que: "estado" }) } catch (e) { ALERTAS = { error: e.message } }
-  renderAlertas();
-}
-function renderAlertas() {
-  const box = $("#alertas-box");
-  if (!clave || !rol || !rol.admin) { box.hidden = true; return }
-  box.hidden = false;
-  const fuentes = B.filter(b => /pubmed\.ncbi\.nlm\.nih\.gov\/.*term=|colibri\.udelar/i.test(b.link || "") && !/^Alerta automática/.test(b.notas || ""));
-  const st = ALERTAS;
-  $("#alertas-estado").innerHTML = !st ? "Consultando…" : st.error ? (st.error === "Acción desconocida." ? "Para usar las alertas hay que actualizar el motor (Apps Script)." : esc(st.error))
-    : `${st.activas ? "🟢 <b>Activadas</b>: cada lunes a las 8 revisa tus búsquedas y te avisa por mail." : "⚪ <b>Desactivadas</b>."}${st.ultima ? ` Última revisión: ${esc(fdate(st.ultima))}.` : ""}<br>Revisa ${fuentes.length} búsqueda${fuentes.length === 1 ? "" : "s"} con link de PubMed o Colibri.`;
-  $("#al-on").hidden = !st || !!st.error || st.activas; $("#al-off").hidden = !st || !!st.error || !st.activas; $("#al-probar").hidden = !st || !!st.error;
-}
-async function accionAlertas(que, btn) {
-  btn.disabled = true; const t = btn.textContent; btn.textContent = que === "probar" ? "Buscando…" : "…";
-  try {
-    const j = await api("alertas", { que });
-    ALERTAS = { ...ALERTAS, activas: j.activas, ultima: j.resultado ? new Date().toLocaleDateString("sv") : (ALERTAS && ALERTAS.ultima) };
-    if (que === "probar") { const n = j.resultado.total; toast(n ? (n === 1 ? "Encontré 1 artículo nuevo: ya está en Referencias y te mandé el mail." : `Encontré ${n} artículos nuevos: ya están en Referencias y te mandé el mail.`) : "No hay artículos nuevos desde la última revisión.", 7000); await cargar(true) }
-    else toast(j.activas ? "Alertas activadas" : "Alertas desactivadas");
-  } catch (e) { toast("No se pudo: " + e.message, 7000) }
-  finally { btn.disabled = false; btn.textContent = t; renderAlertas() }
-}
-$("#al-on").onclick = e => accionAlertas("activar", e.target);
-$("#al-off").onclick = e => accionAlertas("desactivar", e.target);
-$("#al-probar").onclick = e => accionAlertas("probar", e.target);
 
 /* ---------- Checklist PRISMA 2020 ---------- */
 const CHECKLIST = [
@@ -247,4 +215,4 @@ if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catc
 
 /* ---------- Primer dibujo ---------- */
 renderExtra();
-cargarComentarios(); cargarAlertas();
+cargarComentarios();
