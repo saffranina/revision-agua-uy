@@ -112,6 +112,103 @@ const CAMPOS_EXT = [
   ["confusores", "Ajuste por confusores", 2, ""], ["financiamiento", "Financiamiento / conflictos de interés", 1, ""],
   ["notas", "Notas", 2, ""],
 ];
+/* ---------- Categorías para el mapa de evidencia ---------- */
+const CAT_EXP = ["Cianotoxinas", "Agrotóxicos", "Trihalometanos", "Sodio y cloruros", "Nitratos", "Metales pesados", "Microplásticos"];
+const CAT_DES = ["Gastrointestinal", "Hepático", "Neurológico", "Cáncer", "Reproductivo y desarrollo", "Renal", "Cardiovascular / presión arterial", "Intoxicación aguda", "Biomarcadores de exposición", "Otro"];
+const chips = (id, opciones, valor) => {
+  const sel = new Set(String(valor || "").split(/;\s*/).filter(Boolean));
+  return opciones.map(o => `<label class="chk"><input type="checkbox" value="${esc(o)}"${sel.has(o) ? " checked" : ""}> ${esc(o)}</label>`).join("");
+};
+const leerChips = id => [...$(id).querySelectorAll("input:checked")].map(i => i.value).join("; ");
+
+/* ---------- Mapa de evidencia: exposición × efecto en salud ---------- */
+function mapaEvidencia() {
+  const incl = new Set(R.filter(r => r.estadoK === "inc").map(r => r.codigo));
+  const ext = EXT.filter(e => incl.has(e.codigo) && e.expCat && e.desCat);
+  if (!ext.length) return `<div class="empty">El mapa de evidencia aparece cuando, en la extracción de datos, marques la categoría de exposición y de efecto en salud de los estudios incluidos.</div>`;
+  const celdas = {}; let max = 1;
+  ext.forEach(e => e.expCat.split(/;\s*/).forEach(x => e.desCat.split(/;\s*/).forEach(d => {
+    const k = x + "|" + d; (celdas[k] = celdas[k] || []).push(e.codigo); max = Math.max(max, celdas[k].length);
+  })));
+  const filas = CAT_EXP.filter(x => ext.some(e => e.expCat.includes(x))), cols = CAT_DES.filter(d => ext.some(e => e.desCat.includes(d)));
+  const CW = 92, RH = 54, L = 150, T = 90, W = L + cols.length * CW + 90, H = T + filas.length * RH + 10;
+  let svg = cols.map((d, j) => `<text class="eje" transform="translate(${L + j * CW + CW / 2} ${T - 8}) rotate(-30)" text-anchor="start">${esc(d)}</text>`).join("");
+  filas.forEach((x, i) => {
+    const y = T + i * RH + RH / 2;
+    svg += `<text class="eje fila" x="${L - 10}" y="${y + 4}" text-anchor="end">${esc(x)}</text><line class="grid" x1="${L}" x2="${W - 90}" y1="${y}" y2="${y}"/>`;
+    cols.forEach((d, j) => {
+      const est = celdas[x + "|" + d] || [], cx = L + j * CW + CW / 2;
+      if (!est.length) { svg += `<circle class="vacio" cx="${cx}" cy="${y}" r="3"/>`; return }
+      const r = 9 + 15 * Math.sqrt(est.length / max);
+      svg += `<g class="burb"><title>${esc(x)} × ${esc(d)}: ${est.length} estudio${est.length === 1 ? "" : "s"} (${est.join(", ")})</title><circle cx="${cx}" cy="${y}" r="${r}"/><text x="${cx}" y="${y + 5}" text-anchor="middle">${est.length}</text></g>`;
+    });
+  });
+  return `<div class="tabla"><svg class="evid" viewBox="0 0 ${W} ${H}" style="min-width:${Math.min(W, 640)}px">${svg}</svg></div>
+    <p class="note">Cada burbuja muestra cuántos estudios incluidos evalúan esa exposición y ese efecto en salud (pasa el dedo o el mouse para ver cuáles). Los puntitos son vacíos de evidencia.</p>`;
+}
+
+/* ---------- Certeza de la evidencia (GRADE) ---------- */
+const GR_NIVELES = { sesgo: ["No serio", "Serio", "Muy serio"], inconsistencia: ["No seria", "Seria", "Muy seria"], indirecta: ["No seria", "Seria", "Muy seria"], imprecision: ["No seria", "Seria", "Muy seria"], publicacion: ["No detectado", "Sospechado"] };
+const GR_CERTEZA = ["Alta", "Moderada", "Baja", "Muy baja"];
+const GR_SIMB = { "Alta": "⊕⊕⊕⊕", "Moderada": "⊕⊕⊕◯", "Baja": "⊕⊕◯◯", "Muy baja": "⊕◯◯◯" };
+function certezaSugerida(g) {
+  // Observacionales empiezan en «Baja» (4 = alta … 1 = muy baja); bajan por cada problema y suben por factores a favor
+  let n = /aleatoriz|ensayo/i.test(g.diseno || "") ? 4 : 2;
+  ["sesgo", "inconsistencia", "indirecta", "imprecision"].forEach(k => { if (/^Muy/.test(g[k])) n -= 2; else if (/^Seri/.test(g[k])) n -= 1 });
+  if (g.publicacion === "Sospechado") n -= 1;
+  if (/gran magnitud|dosis|confusión/i.test(g.aumentan || "")) n += 1;
+  return GR_CERTEZA[4 - Math.max(1, Math.min(4, n))];
+}
+function renderGrade() {
+  const editable = !!clave;
+  $("#grade-add").hidden = !editable;
+  $("#grade").innerHTML = GRADE.length ? `<div class="tabla"><table><thead><tr><th>Resultado</th><th>Exposición</th><th>Estudios</th><th>Hallazgo</th><th>Certeza</th></tr></thead><tbody>${GRADE.map(g => `<tr${editable ? ` class="clic" data-g="${esc(g.id)}"` : ""}>
+    <td><b>${esc(g.resultado)}</b></td><td>${esc(g.exposicion)}</td><td>${esc(g.estudios)}<br><span class="meta">${esc(g.diseno)}</span></td><td>${esc(g.efecto)}</td>
+    <td><span class="cert c${GR_CERTEZA.indexOf(g.certeza)}">${GR_SIMB[g.certeza] || ""} ${esc(g.certeza || "—")}</span>${[["sesgo", "riesgo de sesgo"], ["inconsistencia", "inconsistencia"], ["indirecta", "evidencia indirecta"], ["imprecision", "imprecisión"]].filter(([k]) => /^(Seri|Muy)/.test(g[k] || "")).map(([k, l]) => `<br><span class="meta">↓ ${l}: ${esc(g[k].toLowerCase())}</span>`).join("")}</td></tr>`).join("")}</tbody></table></div>`
+    : `<div class="empty">Agrega una fila por cada resultado en salud importante (por ejemplo, «síntomas gastrointestinales» o «biomarcadores de glifosato en orina») y evalúa qué tan confiable es la evidencia.</div>`;
+  $("#grade").querySelectorAll("[data-g]").forEach(tr => tr.onclick = () => abrirGrade(tr.dataset.g));
+}
+let gradeActual = null;
+function abrirGrade(id) {
+  gradeActual = id || null;
+  const g = GRADE.find(x => x.id === id) || {};
+  const sel = (k, ops) => `<select id="g-${k}"><option value="">— Elegir —</option>${ops.map(o => `<option${o === g[k] ? " selected" : ""}>${o}</option>`).join("")}</select>`;
+  $("#g-campos").innerHTML = `
+    <label>Resultado en salud<input id="g-resultado" value="${esc(g.resultado || "")}" placeholder="Síntomas gastrointestinales"></label>
+    <label>Exposición<input id="g-exposicion" value="${esc(g.exposicion || "")}" list="g-exps" placeholder="Cianotoxinas"></label>
+    <datalist id="g-exps">${CAT_EXP.map(c => `<option value="${esc(c)}">`).join("")}</datalist>
+    <label>Estudios (códigos)<input id="g-estudios" value="${esc(g.estudios || "")}" placeholder="R004, R012"></label>
+    <label>Diseño de los estudios<input id="g-diseno" value="${esc(g.diseno || "")}" placeholder="Observacionales (transversales)"></label>
+    <label>Riesgo de sesgo${sel("sesgo", GR_NIVELES.sesgo)}</label>
+    <label>Inconsistencia (resultados distintos entre estudios)${sel("inconsistencia", GR_NIVELES.inconsistencia)}</label>
+    <label>Evidencia indirecta (población o exposición no tan parecida a la pregunta)${sel("indirecta", GR_NIVELES.indirecta)}</label>
+    <label>Imprecisión (pocos participantes, intervalos amplios)${sel("imprecision", GR_NIVELES.imprecision)}</label>
+    <label>Sesgo de publicación${sel("publicacion", GR_NIVELES.publicacion)}</label>
+    <label>Factores que aumentan la certeza<input id="g-aumentan" value="${esc(g.aumentan || "")}" placeholder="Efecto de gran magnitud, gradiente dosis-respuesta…"></label>
+    <label>Hallazgo / efecto<textarea id="g-efecto" rows="2" placeholder="Mayor frecuencia de síntomas en expuestos (OR 2,1; IC 95 % 1,3 a 3,4)">${esc(g.efecto || "")}</textarea></label>
+    <label>Certeza de la evidencia${sel("certeza", GR_CERTEZA)}</label>
+    <label>Comentarios<textarea id="g-comentarios" rows="2">${esc(g.comentarios || "")}</textarea></label>`;
+  $("#g-borrar").hidden = !id || !(rol && rol.admin);
+  $("#dlg-g").showModal();
+}
+const GR_CAMPOS = ["resultado", "exposicion", "estudios", "diseno", "sesgo", "inconsistencia", "indirecta", "imprecision", "publicacion", "aumentan", "efecto", "certeza", "comentarios"];
+$("#grade-add").onclick = () => abrirGrade(null);
+$("#g-sugerir").onclick = () => {
+  const g = Object.fromEntries(GR_CAMPOS.map(k => [k, $("#g-" + k).value]));
+  $("#g-certeza").value = certezaSugerida(g); toast("Sugerencia según GRADE: revísala con tu equipo.");
+};
+$("#form-g").onsubmit = async ev => {
+  ev.preventDefault();
+  const d = Object.fromEntries(GR_CAMPOS.map(k => [k, $("#g-" + k).value.trim()])); d.id = gradeActual || "";
+  if (!d.resultado) { toast("Escribe el resultado en salud."); return }
+  await guardar($("#g-guardar"), $("#dlg-g"), () => api("guardarGrade", d), "Guardado");
+};
+$("#g-borrar").onclick = () => guardar($("#g-borrar"), $("#dlg-g"), () => api("borrarGrade", { id: gradeActual }), "Fila eliminada");
+$("#grade-doc").onclick = () => {
+  const filas = GRADE.map(g => `<tr><td>${esc(g.resultado)}</td><td>${esc(g.exposicion)}</td><td>${esc(g.estudios)}<br>${esc(g.diseno)}</td><td>${esc(g.sesgo)}</td><td>${esc(g.inconsistencia)}</td><td>${esc(g.indirecta)}</td><td>${esc(g.imprecision)}</td><td>${esc(g.publicacion)}</td><td>${esc(g.efecto)}</td><td>${GR_SIMB[g.certeza] || ""} ${esc(g.certeza)}</td></tr>`).join("");
+  descargar("resumen-de-hallazgos-grade.doc", `<html><head><meta charset="utf-8"><style>body{font-family:Arial;font-size:9pt}table{border-collapse:collapse}td,th{border:1px solid #000;padding:4px;vertical-align:top}th{background:#eee}</style></head><body><h3>Resumen de hallazgos y certeza de la evidencia (GRADE)</h3><table><tr><th>Resultado</th><th>Exposición</th><th>Estudios y diseño</th><th>Riesgo de sesgo</th><th>Inconsistencia</th><th>Evidencia indirecta</th><th>Imprecisión</th><th>Sesgo de publicación</th><th>Hallazgo</th><th>Certeza</th></tr>${filas}</table><p>GRADE: ⊕⊕⊕⊕ alta · ⊕⊕⊕◯ moderada · ⊕⊕◯◯ baja · ⊕◯◯◯ muy baja.</p></body></html>`, "application/msword");
+};
+
 function renderEstudios() {
   const inc = R.filter(r => r.estadoK === "inc").sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)));
   const ext = Object.fromEntries(EXT.map(e => [e.codigo, e])), ses = Object.fromEntries(SES.map(s => [s.codigo, s]));
@@ -130,6 +227,8 @@ function renderEstudios() {
   }).join("") : `<div class="empty">Cuando incluyas estudios (estado «Incluida»), aparecen aquí para extraer los datos y evaluar el riesgo de sesgo.</div>`;
   $("#est-list").querySelectorAll("[data-ext]").forEach(b => b.onclick = () => abrirExtraccion(b.dataset.ext));
   $("#est-list").querySelectorAll("[data-ses]").forEach(b => b.onclick = () => abrirSesgo(b.dataset.ses));
+  $("#evidencia").innerHTML = mapaEvidencia();
+  renderGrade();
   // Semáforo de riesgo de sesgo
   const conSes = inc.filter(r => ses[r.codigo]);
   $("#semaforo").innerHTML = conSes.length ? `<div class="tabla"><table class="sem"><thead><tr><th>Estudio</th>${DOMINIOS.map(([k]) => `<th title="${esc(DOMINIOS.find(d => d[0] === k)[1])}">${k.toUpperCase()}</th>`).join("")}<th>Global</th></tr></thead><tbody>${conSes.map(r => {
@@ -156,6 +255,8 @@ function abrirExtraccion(codigo) {
   const deps = new Set(String(e.departamento || "").split(/[;,]/).map(x => x.trim()).filter(Boolean));
   $("#e-deps").innerHTML = ["Todo el país", ...TEJAS.map(t => t[0]).sort((a, b) => a.localeCompare(b))].map(d =>
     `<label class="chk"><input type="checkbox" value="${esc(d)}"${deps.has(d) ? " checked" : ""}> ${esc(d)}</label>`).join("");
+  $("#e-expcat").innerHTML = chips("#e-expcat", CAT_EXP, e.expCat);
+  $("#e-descat").innerHTML = chips("#e-descat", CAT_DES, e.desCat);
   $("#e-campos").innerHTML = CAMPOS_EXT.map(([k, l, filas, ph]) => `<label>${esc(l)}${filas > 1 ? `<textarea id="e-${k}" rows="${filas}" placeholder="${esc(ph)}">${esc(e[k] || "")}</textarea>` : `<input id="e-${k}" value="${esc(e[k] || "")}" placeholder="${esc(ph)}">`}</label>`).join("");
   const yo = rol && (rol.revisor || "administración");
   $("#e-estado").textContent = e.extraidoPor ? `Extraído por ${e.extraidoPor} (${fdt(e.fecha)})${e.verificadoPor ? ` · Verificado por ${e.verificadoPor} (${fdt(e.fechaVerif)})` : " · Falta que otra persona lo verifique"}` : "Todavía no se extrajeron datos de este estudio.";
@@ -164,7 +265,7 @@ function abrirExtraccion(codigo) {
 }
 $("#form-e").onsubmit = async ev => {
   ev.preventDefault();
-  const datos = { codigo: extActual, departamento: [...$("#e-deps").querySelectorAll("input:checked")].map(i => i.value).join("; ") };
+  const datos = { codigo: extActual, departamento: [...$("#e-deps").querySelectorAll("input:checked")].map(i => i.value).join("; "), expCat: leerChips("#e-expcat"), desCat: leerChips("#e-descat") };
   CAMPOS_EXT.forEach(([k]) => datos[k] = $("#e-" + k).value.trim());
   await guardar($("#e-guardar"), $("#dlg-e"), () => api("guardarExtraccion", datos), "Datos guardados. Ahora otra persona tiene que verificarlos.");
 };

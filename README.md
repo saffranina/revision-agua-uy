@@ -82,6 +82,8 @@ const REVISORES = {
 
 ## Si cambias el código de Apps Script
 
+Si el código nuevo usa permisos nuevos (por ejemplo, mandar mails para las alertas), antes de implementar ejecuta otra vez **prepararPlanilla** y acepta los permisos.
+
 Después de editar `Codigo.gs`: **Implementar → Administrar implementaciones → ✏️ → Versión: Nueva versión → Implementar**. La URL no cambia.
 
 ## Cadenas de búsqueda
@@ -91,7 +93,16 @@ Después de editar `Codigo.gs`: **Implementar → Administrar implementaciones �
 
 ## Uso diario
 
-Pestañas: **Protocolo · Búsquedas · Referencias · Estudios · PRISMA · Exportar**.
+Pestañas: **Inicio · Protocolo · Búsquedas · Referencias · Estudios · PRISMA · Exportar**.
+
+- **Inicio**: «¿Qué sigue?» (el próximo paso de la revisión), números clave, barras de avance, gráficos de artículos por año y de incluidos por exposición, alertas semanales y una guía rápida con glosario. Cada pestaña tiene además un «📖 ¿Qué es esto?».
+- **Alertas semanales**: en Inicio (administración) se activan. Cada lunes a las 8 el motor repite las búsquedas con link de PubMed o Colibri, carga lo nuevo como una búsqueda de actualización y manda un mail. «Buscar ahora» lo hace en el momento.
+- **Cribado inteligente**: al cribar, «🧠 Más probables primero» ordena los pendientes según las palabras del protocolo y el chequeo de Uruguay y, desde que hay 5 que pasaron y 5 excluidos, según lo que aprende de las decisiones (clasificador bayesiano en el navegador). Solo ordena: todos se criban igual.
+- **Comentarios** privados entre revisoras en cada artículo (ficha, cribado y conflictos).
+- **Mapa de evidencia** (exposición × efecto en salud) con las categorías marcadas en la extracción, y **tabla GRADE** (resumen de hallazgos con certeza alta, moderada, baja o muy baja; sugiere la certeza y se descarga para Word).
+- **Checklist PRISMA 2020**: los 27 ítems, lo que la página ya genera para cada uno y la página del manuscrito; se descarga para Word.
+- **Paquete de reproducibilidad** (Exportar): un .zip con protocolo, búsquedas, referencias, historial, decisiones, comentarios, extracción, riesgo de sesgo, GRADE, diagrama, texto de métodos y checklist.
+- **Sin conexión**: la página abre sin internet y las decisiones de cribado se guardan en el dispositivo hasta que vuelve la conexión.
 
 - **Protocolo**: pregunta PECO, criterios de inclusión y exclusión, diseños elegibles, PROSPERO, herramienta de riesgo de sesgo y palabras para resaltar. Los criterios se ven mientras se criba.
 - **Método de cada búsqueda**: «Bases de datos y registros» u «Otros métodos» (repositorios, sitios web, búsqueda manual, rastreo de citas). Define en qué columna del diagrama PRISMA cuenta.

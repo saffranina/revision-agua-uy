@@ -27,7 +27,7 @@ const store = {
 let pdfAbierto = "", uruguayAuto = "", colaCrib = [];
 // Quién entró: administración y/o Revisor 1, 2 o 3 (cribado doble ciego)
 let rol = (() => { try { return JSON.parse(store.get("rol") || "null") } catch (e) { return null } })();
-let mias = new Map(), otroAvance = null, doble = false, ACU = null, PROT = {}, EXT = [], SES = [];
+let mias = new Map(), otroAvance = null, doble = false, ACU = null, PROT = {}, EXT = [], SES = [], GRADE = [];
 const faseNum = () => $("#c-fase").value === "pend" ? 1 : 2;
 const claveDec = (codigo, fase) => codigo + "|" + fase;
 let B = [], R = [], H = [], clave = store.get("clave") || "", editB = null, editR = null, pdfFile = null, cargando = false;
@@ -74,7 +74,7 @@ function aplicar(j) {
   H = j.historial || [];
   ACU = j.acuerdo || null;
   PROT = Object.fromEntries((j.protocolo || []).map(x => [x.clave, x.valor]));
-  EXT = j.extraccion || []; SES = j.sesgo || [];
+  EXT = j.extraccion || []; SES = j.sesgo || []; GRADE = j.grade || [];
   renderAll();
 }
 // Llama al motor y traduce cada falla a un mensaje que diga qué revisar
@@ -112,7 +112,10 @@ function setModo() {
   renderExtra();
 }
 // Protocolo y estudios viven en estudios.js, que carga después
-function renderExtra() { if (typeof renderEstudios === "function") { renderProtocolo(); renderEstudios() } }
+function renderExtra() {
+  if (typeof renderEstudios === "function") { renderProtocolo(); renderEstudios() }
+  if (typeof renderInicio === "function") { renderInicio(); renderChecklist() }
+}
 async function actualizarRol() {
   if (!clave) return;
   try {
@@ -130,6 +133,7 @@ $("#form-k").onsubmit = async e => {
     rol = j.rol || { admin: true, revisor: "" };
     store.set("clave", k); store.set("rol", JSON.stringify(rol)); $("#dlg-k").close();
     toast("Entraste como " + [rol.revisor, rol.admin ? "administración" : ""].filter(Boolean).join(" y ")); contarConflictos();
+    if (typeof cargarComentarios === "function") { cargarComentarios(); cargarAlertas() }
   }
   catch (err) { clave = prev; toast(err.message === "Clave incorrecta." ? "Clave incorrecta." : err.message, 9000) }
   setModo();
@@ -181,7 +185,7 @@ function renderR() {
       ${fechas ? `<div class="meta">${esc(fechas)}</div>` : ""}
       ${dupl.de[r.codigo] ? `<div class="meta">🔁 Duplicado de <a href="#" data-ir="${esc(dupl.de[r.codigo])}">${esc(dupl.de[r.codigo])}</a></div>` : ""}
       ${(dupl.copias[r.codigo] || []).length ? `<div class="meta">🔁 También apareció en: ${dupl.copias[r.codigo].map(d => `${esc(d.base || "otra búsqueda")}${d.fechaBusqueda ? " " + esc(fdate(d.fechaBusqueda)) : ""} (<a href="#" data-ir="${esc(d.codigo)}">${esc(d.codigo)}</a>)`).join(", ")}</div>` : ""}
-      ${link || safeUrl(r.pdf) || r.resumen ? `<div class="links">${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">Ver en la fuente ↗</a>` : ""}${safeUrl(r.pdf) ? `<a href="${esc(r.pdf)}" target="_blank" rel="noopener">PDF ↗</a>` : ""}${r.resumen ? '<span class="meta">Con resumen</span>' : ""}</div>` : ""}
+      ${link || safeUrl(r.pdf) || r.resumen ? `<div class="links">${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">Ver en la fuente ↗</a>` : ""}${safeUrl(r.pdf) ? `<a href="${esc(r.pdf)}" target="_blank" rel="noopener">PDF ↗</a>` : ""}${r.resumen ? '<span class="meta">Con resumen</span>' : ""}${typeof nCom === "function" && nCom(r.codigo) ? `<span class="meta">💬 ${nCom(r.codigo)}</span>` : ""}</div>` : ""}
     </div>`}).join("");
   el.querySelectorAll(".item a").forEach(a => a.onclick = e => { e.stopPropagation(); if (a.dataset.ir) { e.preventDefault(); openR(a.dataset.ir) } });
   el.querySelectorAll(".item").forEach(i => { i.onclick = () => openR(i.dataset.id); i.onkeydown = e => { if (e.key === "Enter" && e.target === i) openR(i.dataset.id) } });
@@ -288,6 +292,8 @@ function openR(codigo) {
   const extra = (dupl.copias[codigo] || []).map(d => ({ fecha: d.creado, accion: "También apareció en " + (d.base || "otra búsqueda"), detalle: d.codigo }))
     .concat(dupl.de[codigo] ? [{ fecha: "", accion: "Duplicado de " + dupl.de[codigo], detalle: "" }] : []);
   $("#r-hist").innerHTML = histHtml(hist.concat(extra)); $("#r-hist").hidden = !hist.length && !extra.length;
+  $("#r-com").hidden = !codigo || !clave;
+  $("#r-com").textContent = `💬 Comentarios${codigo && typeof nCom === "function" && nCom(codigo) ? ` (${nCom(codigo)})` : ""}`;
   lock($("#form-r"));
   // El estado lo deciden los revisores en el cribado doble ciego
   if (clave && !rol.admin) { $("#r-estado").disabled = true; $("#r-motivo").disabled = true }
@@ -539,10 +545,15 @@ function resaltar(texto) {
 /* ---------- Cribado: artículo por artículo ---------- */
 const MOTIVOS = ["No es en Uruguay", "No es agua de consumo humano", "Agua recreativa", "No evalúa salud humana", "Salud animal o estudio en animales", "Contaminante fuera del alcance", "Diseño no elegible", "No es un estudio original"];
 let cribActual = null, cribHist = [], cribSaltados = new Set();
+let PRIO = { puntajes: new Map(), modelo: { listo: false, pos: 0, neg: 0 } };
+function calcularPrioridad() {
+  const lista = R.filter(r => r.estadoK === "pend" || r.estadoK === "ft");
+  PRIO = Prioridad.puntuar(R, lista, { incluir: palabras(PROT.palabrasIncluir || PAL_INCLUIR), excluir: palabras(PROT.palabrasExcluir || PAL_EXCLUIR), secundarias: palabras(PROT.palabrasSecundarias || PAL_SECUNDARIAS) });
+}
 function colaFase() {
-  const fase = $("#c-fase").value, fb = $("#f-busq").value;
+  const fase = $("#c-fase").value, fb = $("#f-busq").value, porProb = $("#c-orden").value === "prob";
   return R.filter(r => r.estadoK === fase && (!fb || r.busqueda === fb) && !cribSaltados.has(r.codigo) && !(doble && mias.has(claveDec(r.codigo, faseNum()))))
-    .sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)));
+    .sort((a, b) => porProb ? (PRIO.puntajes.get(b.codigo) || 0) - (PRIO.puntajes.get(a.codigo) || 0) : String(a.codigo).localeCompare(String(b.codigo)));
 }
 function renderCrib() {
   const fase = $("#c-fase").value, cola = colaFase();
@@ -567,13 +578,15 @@ function renderCrib() {
   }
   $("#c-btns").hidden = false;
   const r = cribActual, link = safeUrl(r.link) || doiUrl(r.doi), uy = r.uruguay || "";
-  card.innerHTML = `<div class="meta">${esc(r.codigo)}${r.base ? " · " + esc(r.base) : ""}</div>
+  const prob = PRIO.puntajes.get(r.codigo), nc = typeof nCom === "function" ? nCom(r.codigo) : 0;
+  card.innerHTML = `<div class="meta">${esc(r.codigo)}${r.base ? " · " + esc(r.base) : ""}${prob != null ? ` · <span class="prob" title="${PRIO.modelo.listo ? `Aprendido de ${PRIO.modelo.pos} que pasaron y ${PRIO.modelo.neg} excluidos, más las palabras del protocolo` : "Según las palabras del protocolo y el chequeo de Uruguay (aprende después de 5 que pasen y 5 excluidos)"}">🧠 ${Math.round(prob * 100)} % probable</span>` : ""}</div>
     <h3>${resaltar(r.titulo)}</h3>
     <div class="meta">${esc([r.autores, r.anio, r.revista].filter(Boolean).join(" · "))}</div>
     ${uy ? `<div class="uycheck ${/^No se detect/.test(uy) ? "warn" : "ok"}">${/^No se detect/.test(uy) ? "⚠️ " : "🇺🇾 "}${esc(uy)}</div>` : ""}
     <div class="abs">${r.resumen ? resaltar(r.resumen) : '<span class="meta">Sin resumen cargado.</span>'}</div>
-    <div class="links">${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">Ver en la fuente ↗</a>` : ""}${safeUrl(r.pdf) ? `<a href="${esc(r.pdf)}" target="_blank" rel="noopener">PDF ↗</a>` : ""}<a href="#" id="c-editar">Editar ficha</a></div>`;
+    <div class="links">${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">Ver en la fuente ↗</a>` : ""}${safeUrl(r.pdf) ? `<a href="${esc(r.pdf)}" target="_blank" rel="noopener">PDF ↗</a>` : ""}<a href="#" id="c-editar">Editar ficha</a><a href="#" id="c-com">💬 Comentarios${nc ? ` (${nc})` : ""}</a></div>`;
   $("#c-editar").onclick = e => { e.preventDefault(); $("#dlg-c").close(); openR(r.codigo) };
+  $("#c-com").onclick = e => { e.preventDefault(); abrirComentarios(r.codigo) };
   card.scrollTop = 0;
 }
 async function abrirCrib() {
@@ -591,7 +604,7 @@ async function abrirCrib() {
   $("#c-fase").value = R.some(r => r.estadoK === "pend") || !R.some(r => r.estadoK === "ft") ? "pend" : "ft";
   $("#c-motivos").innerHTML = MOTIVOS.map(m => `<button type="button">${esc(m)}</button>`).join("");
   $("#c-motivos").querySelectorAll("button").forEach(b => b.onclick = () => decidir(fase2Excl(), b.textContent));
-  renderCrib(); actualizarGuardado(); $("#dlg-c").showModal();
+  calcularPrioridad(); renderCrib(); actualizarGuardado(); $("#dlg-c").showModal();
 }
 const fase2Excl = () => $("#c-fase").value === "pend" ? "exta" : "extc";
 function decidir(estado, motivo) {
@@ -613,7 +626,8 @@ function decidir(estado, motivo) {
 async function procesarCola() {
   if (procesarCola.activo) return; procesarCola.activo = true;
   while (colaCrib.length) {
-    actualizarGuardado();
+    actualizarGuardado(); if (typeof guardarColaLocal === "function") guardarColaLocal();
+    if (!navigator.onLine) break; // se retoma con el evento «online»
     const r = colaCrib[0];
     if (r.doble) {
       try { await api("decidir", { codigo: r.codigo, fase: r.fase, decision: r.decision, motivo: r.motivo }); colaCrib.shift() }
@@ -632,12 +646,16 @@ async function procesarCola() {
       await new Promise(ok => setTimeout(ok, 5000));
     }
   }
-  procesarCola.activo = false; actualizarGuardado(); await cargar(true); contarConflictos();
+  procesarCola.activo = false; actualizarGuardado(); if (typeof guardarColaLocal === "function") guardarColaLocal();
+  if (colaCrib.length) return;
+  await cargar(true); contarConflictos();
 }
-function actualizarGuardado() { $("#c-guard").textContent = colaCrib.length ? `Guardando ${colaCrib.length}…` : "✓ Todo guardado" }
+function actualizarGuardado() { $("#c-guard").textContent = colaCrib.length ? (navigator.onLine ? `Guardando ${colaCrib.length}…` : `📴 ${colaCrib.length} para guardar cuando vuelva internet`) : "✓ Todo guardado" }
 $("#crib-btn").onclick = abrirCrib;
 $("#c-cerrar").onclick = () => $("#dlg-c").close();
 $("#c-fase").onchange = () => { cribActual = null; cribSaltados.clear(); renderCrib() };
+$("#c-orden").onchange = () => { cribActual = null; calcularPrioridad(); renderCrib(); store.set("orden", $("#c-orden").value) };
+if (store.get("orden")) $("#c-orden").value = store.get("orden");
 $("#c-si").onclick = () => decidir($("#c-fase").value === "pend" ? "ft" : "inc");
 $("#c-no").onclick = () => { $("#c-excl").hidden = false; $("#c-motivo").value = ""; $("#c-excl").scrollIntoView({ block: "nearest" }) };
 $("#c-excl-ok").onclick = () => decidir(fase2Excl(), $("#c-motivo").value.trim());
@@ -691,11 +709,13 @@ function renderConflictos() {
       <b>${esc(r.titulo)}</b>
       ${r.resumen ? `<details><summary class="note">Ver resumen</summary><div class="abs">${resaltar(r.resumen)}</div></details>` : ""}
       <div class="xops"><span><b>Revisor 1:</b> ${op(c.r1)}</span><span><b>Revisor 2:</b> ${op(c.r2)}</span></div>
+      <a href="#" class="x-com" data-c="${esc(c.codigo)}">💬 Comentarios${nCom(c.codigo) ? ` (${nCom(c.codigo)})` : ""}</a>
       <label>Cómo se resuelve<select class="x-met"><option value="consenso"${tercero ? "" : " selected"}>Consenso entre Revisor 1 y Revisor 2</option><option value="tercero"${tercero ? " selected" : ""}>Decisión del Revisor 3</option></select></label>
       <input class="x-mot" list="motivos" placeholder="Motivo (si se excluye)">
       <div class="bar"><button type="button" class="btn cok" data-d="si">✓ ${c.fase === 1 ? "Pasa" : "Incluir"}</button><button type="button" class="btn danger" data-d="no">✗ Excluir</button>${c.fase === 1 ? '<button type="button" class="btn ghost" data-d="dup">Duplicado</button>' : '<button type="button" class="btn ghost" data-d="nr">No se consiguió</button>'}</div>
     </div>`;
   }).join("");
+  el.querySelectorAll(".x-com").forEach(a => a.onclick = e => { e.preventDefault(); abrirComentarios(a.dataset.c) });
   el.querySelectorAll(".xcard").forEach(card => card.querySelectorAll("button[data-d]").forEach(b => b.onclick = async () => {
     const c = CONF[card.dataset.i], decision = b.dataset.d, motivo = card.querySelector(".x-mot").value.trim();
     if (decision === "no" && !motivo) { toast("Escribe o elige el motivo de exclusión."); card.querySelector(".x-mot").focus(); return }
@@ -791,3 +811,5 @@ actualizarRol();
 try { const c = JSON.parse(store.get("cache") || "null"); if (c) aplicar(c); else renderAll() } catch (e) { renderAll() }
 cargar();
 document.addEventListener("visibilitychange", () => { if (!document.hidden) cargar(true) });
+
+$("#r-com").onclick = () => abrirComentarios(editR);

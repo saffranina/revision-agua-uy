@@ -781,4 +781,8 @@ function prepararPlanilla() {
   const sobrante = SpreadsheetApp.openById(PLANILLA).getSheetByName('Hoja 1') || SpreadsheetApp.openById(PLANILLA).getSheetByName('Sheet1');
   if (sobrante && SpreadsheetApp.openById(PLANILLA).getSheets().length > 1) SpreadsheetApp.openById(PLANILLA).deleteSheet(sobrante);
   DriveApp.getFolderById(CARPETA_PDFS).getName();
+  // Pide de una vez los permisos de las alertas (mail, tareas programadas, internet)
+  PropertiesService.getScriptProperties().getProperty('ultimaAlerta');
+  ScriptApp.getProjectTriggers();
+  MailApp.getRemainingDailyQuota();
 }

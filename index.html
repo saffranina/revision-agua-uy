@@ -229,6 +229,41 @@ mark.mi{background:var(--mint)} mark.ms{background:var(--sky)} mark.mx{backgroun
 .mapa .t0{fill:var(--surface);stroke:var(--line);stroke-width:2} .mapa .t1{fill:#ece5fb} .mapa .t2{fill:#cbbcf2} .mapa .t3{fill:#9f86e0} .mapa .t4{fill:#7457c0}
 .mapa .tn{font:700 11px var(--f-body)} .mapa .tc{font:600 20px var(--f-display)}
 .mapa .t1 ~ text,.mapa .t2 ~ text{fill:#3b2a5a}
+/* Inicio, ayudas, gráficos, mapa de evidencia, GRADE, checklist */
+.pasos{display:grid;gap:10px}
+.paso{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;background:var(--surface);border:2px solid var(--line);border-radius:20px;padding:12px 14px;box-shadow:var(--shadow)}
+.paso.uno{border-color:var(--lav);background:linear-gradient(135deg, var(--surface), var(--accent-soft))}
+.paso .ic{font-size:1.5rem;width:44px;height:44px;display:grid;place-items:center;border-radius:14px;background:var(--yellow)}
+.paso b{font-family:var(--f-display);font-weight:600;font-size:1.05rem} .paso p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px}
+.kpi{background:var(--surface);border:2px solid var(--line);border-radius:18px;padding:12px;display:grid;gap:2px;box-shadow:var(--shadow)}
+.kpi b{font:600 1.7rem var(--f-display);color:var(--accent);font-variant-numeric:tabular-nums} .kpi span{font-size:.82rem;color:var(--muted);font-weight:700}
+.avance{display:grid;gap:12px;background:var(--surface);border:2px solid var(--line);border-radius:20px;padding:14px 16px}
+.prog .bar{justify-content:space-between;font-weight:700;font-size:.92rem}
+.pista{height:12px;border-radius:999px;background:var(--accent-soft);overflow:hidden;margin-top:4px}
+.pista>div{height:100%;border-radius:999px;background:linear-gradient(90deg, var(--lav), var(--accent))}
+.panel{display:grid;gap:8px;background:var(--surface);border:2px solid var(--line);border-radius:20px;padding:12px 14px;min-width:0}
+.panel .lbl,.lbl{font-size:.85rem;color:var(--muted);font-weight:800}
+svg.graf{width:100%;height:auto;display:block}
+.graf .grid{stroke:var(--line);stroke-width:1} .graf .base{stroke:var(--muted);stroke-width:1}
+.graf .eje{font:600 11px var(--f-body);fill:var(--muted)} .graf .val{font:800 11px var(--f-body);fill:var(--ink)}
+.graf .bar{fill:var(--accent)} .graf .hit{fill:transparent} .graf .barra:hover .bar{fill:var(--lav)}
+details.ayuda{background:color-mix(in srgb, var(--yellow) 55%, var(--surface));border:2px solid var(--yellow);border-radius:16px;padding:8px 12px}
+details.ayuda summary{cursor:pointer;font-weight:800;color:var(--ink)} details.ayuda div{margin-top:6px;line-height:1.55;max-width:75ch}
+.guia{display:grid;gap:10px}
+.guia details{background:var(--surface);border:2px solid var(--line);border-radius:18px;padding:10px 14px}
+.guia summary{cursor:pointer;font-weight:800} .guia ol{margin:8px 0 0;padding-left:20px;line-height:1.6}
+.guia dt{font-weight:800;margin-top:8px;color:var(--accent)} .guia dd{margin:2px 0 0;color:var(--ink)}
+svg.evid{width:100%;height:auto;display:block}
+.evid .eje{font:700 11px var(--f-body);fill:var(--ink)} .evid .grid{stroke:var(--line)} .evid .vacio{fill:var(--line)}
+.evid .burb circle{fill:var(--accent);stroke:var(--surface);stroke-width:2;opacity:.9} .evid .burb text{font:700 12px var(--f-body);fill:#fff;pointer-events:none}
+.evid .burb:hover circle{fill:var(--lav)}
+.cert{font-weight:800;white-space:nowrap} .cert.c0{color:var(--ok)} .cert.c1{color:var(--accent)} .cert.c2{color:var(--warn)} .cert.c3{color:var(--bad)}
+tr.clic{cursor:pointer} tr.clic:hover td{background:var(--accent-soft)}
+table.chk tr.sec td{background:var(--accent-soft);font-weight:800;color:var(--accent)}
+table.chk input{min-width:70px}
+.com{background:var(--accent-soft);border-radius:14px;padding:8px 12px} .com p{margin:4px 0 0;white-space:pre-wrap}
+.prob{font-weight:800;color:var(--accent);cursor:help}
 </style>
 </head>
 <body>
@@ -244,27 +279,73 @@ mark.mi{background:var(--mint)} mark.ms{background:var(--sky)} mark.mx{backgroun
   </header>
 
   <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="inicio" aria-selected="true">Inicio</button>
     <button role="tab" data-tab="protocolo" aria-selected="false">Protocolo</button>
-    <button role="tab" data-tab="busquedas" aria-selected="true">Búsquedas</button>
+    <button role="tab" data-tab="busquedas" aria-selected="false">Búsquedas</button>
     <button role="tab" data-tab="referencias" aria-selected="false">Referencias</button>
     <button role="tab" data-tab="estudios" aria-selected="false">Estudios</button>
     <button role="tab" data-tab="prisma" aria-selected="false">PRISMA</button>
     <button role="tab" data-tab="exportar" aria-selected="false">Exportar</button>
   </nav>
 
+  <section class="view" id="v-inicio">
+    <h2>¿Qué sigue?</h2>
+    <div class="pasos" id="sigue"></div>
+    <div class="kpis" id="kpis"></div>
+    <h2>Avance</h2>
+    <div class="avance" id="avance"></div>
+    <div class="grid2">
+      <div class="panel"><span class="lbl">Artículos por año de publicación</span><div id="graf-anios"></div></div>
+      <div class="panel"><span class="lbl">Estudios incluidos por exposición</span><div id="graf-exp"></div></div>
+    </div>
+    <div class="panel" id="alertas-box" hidden>
+      <span class="lbl">🔔 Alertas semanales de artículos nuevos</span>
+      <p class="note" id="alertas-estado"></p>
+      <div class="bar"><button class="btn" id="al-on" hidden>Activar alertas</button><button class="btn ghost" id="al-off" hidden>Desactivar</button><button class="btn ghost" id="al-probar" hidden>Buscar ahora</button></div>
+      <span class="note">Cada lunes el motor repite tus búsquedas con link de PubMed y Colibri, carga los artículos nuevos como «Pendiente de cribado» (registrados como una búsqueda de actualización) y te manda un mail.</span>
+    </div>
+    <h2>Guía rápida</h2>
+    <div class="guia">
+      <details><summary>🧭 Los pasos de una revisión sistemática</summary><ol>
+        <li><b>Protocolo:</b> definir la pregunta y los criterios antes de buscar (y registrarlo en PROSPERO).</li>
+        <li><b>Búsqueda:</b> buscar en varias bases con la misma estrategia y registrar cada búsqueda (fecha, cadena, resultados).</li>
+        <li><b>Cribado:</b> dos personas leen título y resumen por separado y deciden; después leen el texto completo de los que pasan.</li>
+        <li><b>Extracción:</b> copiar los datos de cada estudio incluido en un formulario; otra persona lo verifica.</li>
+        <li><b>Riesgo de sesgo:</b> evaluar qué tan confiable es cada estudio (ROBINS-E).</li>
+        <li><b>Síntesis y certeza:</b> resumir los resultados y evaluar la certeza de la evidencia (GRADE).</li>
+        <li><b>Reporte:</b> escribir el artículo siguiendo PRISMA 2020, con el diagrama de flujo y el checklist.</li></ol></details>
+      <details><summary>📚 Glosario</summary><dl>
+        <dt>Revisión sistemática</dt><dd>Revisión de toda la evidencia sobre una pregunta, con métodos explícitos y reproducibles para que otra persona llegue a lo mismo.</dd>
+        <dt>PECO</dt><dd>Población, Exposición, Comparador y Outcome (desenlace): las partes de la pregunta.</dd>
+        <dt>PROSPERO</dt><dd>Registro internacional gratuito de protocolos de revisiones sistemáticas en salud. Registrar antes de empezar evita cambiar los criterios sobre la marcha.</dd>
+        <dt>PRISMA 2020</dt><dd>La guía para reportar revisiones sistemáticas: 27 ítems y el diagrama de flujo. PRISMA-S es su extensión para reportar las búsquedas.</dd>
+        <dt>Cribado</dt><dd>Decidir, artículo por artículo, si cumple los criterios: primero por título y resumen, después con el texto completo.</dd>
+        <dt>Doble ciego</dt><dd>Dos personas criban por separado sin ver lo que decidió la otra; los desacuerdos se resuelven después.</dd>
+        <dt>Kappa de Cohen</dt><dd>Mide cuánto coinciden dos revisoras más allá del azar. Más de 0,6 es un acuerdo considerable; más de 0,8, casi perfecto.</dd>
+        <dt>Duplicado</dt><dd>El mismo artículo encontrado en dos bases. Se registra una sola vez.</dd>
+        <dt>Literatura gris</dt><dd>Lo que no está en revistas indexadas: tesis, informes de OSE o del MSP, repositorios como Colibri.</dd>
+        <dt>Rastreo de citas</dt><dd>Revisar las referencias de los estudios incluidos y los artículos que los citan para encontrar los que la búsqueda no trajo.</dd>
+        <dt>ROBINS-E</dt><dd>Herramienta para evaluar el riesgo de sesgo de estudios observacionales sobre exposiciones ambientales, en 7 dominios.</dd>
+        <dt>GRADE</dt><dd>Sistema para calificar la certeza de la evidencia de cada resultado: alta, moderada, baja o muy baja.</dd></dl></details>
+    </div>
+  </section>
+
   <section class="view" id="v-protocolo" hidden>
     <h2>Protocolo de la revisión</h2>
+    <details class="ayuda"><summary>📖 ¿Qué es esto?</summary><div>El protocolo define <b>antes de buscar</b> qué pregunta respondes y qué estudios entran y cuáles no. Así todas las personas criban con las mismas reglas y nadie cambia los criterios según lo que va encontrando. Lo ideal es registrarlo en PROSPERO (prospero.york.ac.uk), que es gratis.</div></details>
     <p class="note">La pregunta, los criterios y las palabras para resaltar. Los criterios se ven también mientras cribas. <span id="prot-estado"></span></p>
     <div class="grid1" id="prot-form"></div>
     <div class="bar" id="prot-acciones" hidden><button class="btn" id="prot-guardar">Guardar protocolo</button><button class="btn ghost" id="prot-ejemplo">Completar vacíos con un ejemplo</button></div>
   </section>
 
-  <section class="view" id="v-busquedas">
+  <section class="view" id="v-busquedas" hidden>
+    <details class="ayuda"><summary>📖 ¿Qué es esto?</summary><div>Cada vez que buscas en una base de datos, se registra acá con la fecha, la cadena exacta, los filtros y cuántos resultados salieron. Se registran <b>todas</b>, aunque no salga nada útil: así otra persona puede repetir la búsqueda y llegar a lo mismo. Pega el link de los resultados y toca «Completar»; si adjuntas el archivo exportado, se cargan todos los artículos.</div></details>
     <div class="bar"><h2 class="grow">Búsquedas realizadas</h2><button class="btn admin-only" id="add-b">+ Nueva búsqueda</button></div>
     <div class="list" id="list-b"><div class="empty">Cargando búsquedas…</div></div>
   </section>
 
   <section class="view" id="v-referencias" hidden>
+    <details class="ayuda"><summary>📖 ¿Qué es esto?</summary><div>Todos los artículos encontrados. Con «▶ Cribar» decides uno por uno: primero por título y resumen (¿pasa, quizás o se excluye?) y después con el texto completo (¿se incluye?). El 🧠 indica qué tan probable es que se incluya: aprende de tus decisiones para mostrarte primero los más prometedores, pero <b>igual hay que cribar todos</b>.</div></details>
     <div class="bar"><h2 class="grow">Referencias</h2>
       <button class="btn edit-only" id="crib-btn">▶ Cribar</button>
       <button class="btn ghost edit-only" id="conf-btn">⚖️ Conflictos</button>
@@ -279,13 +360,19 @@ mark.mi{background:var(--mint)} mark.ms{background:var(--sky)} mark.mx{backgroun
 
   <section class="view" id="v-estudios" hidden>
     <h2>Estudios incluidos</h2>
+    <details class="ayuda"><summary>📖 ¿Qué es esto?</summary><div>Acá se trabaja con los estudios que quedaron incluidos: se copian sus datos (extracción, que verifica otra persona), se evalúa qué tan confiable es cada uno (riesgo de sesgo con ROBINS-E) y, al final, qué tan segura es la evidencia para cada resultado en salud (GRADE).</div></details>
     <p class="note">Para cada estudio incluido: extracción de datos (verificada por una segunda persona) y riesgo de sesgo.</p>
     <div class="list" id="est-list"></div>
+    <h2>Mapa de evidencia</h2>
+    <div id="evidencia"></div>
     <h2>Mapa de Uruguay</h2>
     <div class="mapa" id="mapa"></div>
     <p class="note" id="mapa-nota"></p>
     <h2>Riesgo de sesgo</h2>
     <div id="semaforo"></div>
+    <h2>Certeza de la evidencia (GRADE)</h2>
+    <div id="grade"></div>
+    <div class="bar"><button class="btn edit-only" id="grade-add">+ Agregar resultado</button><button class="btn ghost" id="grade-doc">Descargar tabla para Word</button></div>
     <h2>Características de los estudios</h2>
     <div id="tabla-ext"></div>
     <div class="bar"><button class="btn ghost" id="dl-ext">Descargar extracción (CSV)</button></div>
@@ -293,6 +380,7 @@ mark.mi{background:var(--mint)} mark.ms{background:var(--sky)} mark.mx{backgroun
 
   <section class="view" id="v-prisma" hidden>
     <h2>Diagrama de flujo PRISMA 2020</h2>
+    <details class="ayuda"><summary>📖 ¿Qué es esto?</summary><div>PRISMA 2020 es la guía que piden las revistas para publicar una revisión sistemática. Acá está todo lo que la página arma sola: el diagrama de flujo, el acuerdo entre revisoras, el texto de métodos y resultados, la tabla de búsquedas y el checklist de 27 ítems.</div></details>
     <p class="note">Se arma solo con tus búsquedas y el estado de cada referencia. Las búsquedas marcadas como «otros métodos» (Colibri, literatura gris, rastreo de citas…) van en la columna derecha.</p>
     <div class="diagrama" id="prisma-svg"></div>
     <div class="bar"><button class="btn" id="dl-png">Descargar imagen (PNG)</button><button class="btn ghost" id="dl-svg">Descargar SVG</button></div>
@@ -304,6 +392,10 @@ mark.mi{background:var(--mint)} mark.ms{background:var(--sky)} mark.mx{backgroun
     <div class="txtbox"><div class="bar"><span class="lbl grow">Resultados</span><button class="btn ghost" data-copiar="#txt-resultados">Copiar</button></div><p id="txt-resultados"></p></div>
     <p class="note">Es un borrador armado con tus datos: revísalo y ajústalo a tu estilo y al de la revista.</p>
 
+    <h2>Checklist PRISMA 2020</h2>
+    <p class="note">Los 27 ítems que se adjuntan al enviar el artículo. La columna del medio muestra lo que la página ya tiene; anota en qué página del manuscrito está cada ítem.</p>
+    <div id="checklist"></div>
+    <div class="bar"><button class="btn admin-only" id="chk-guardar">Guardar páginas</button><button class="btn ghost" id="chk-doc">Descargar para Word</button></div>
     <h2>Estrategias de búsqueda (PRISMA-S)</h2>
     <p class="note">Para el anexo del artículo: cada búsqueda con su fuente, fecha, estrategia completa, filtros y resultados.</p>
     <div id="tabla-busq"></div>
@@ -312,6 +404,9 @@ mark.mi{background:var(--mint)} mark.ms{background:var(--sky)} mark.mx{backgroun
 
   <section class="view" id="v-exportar" hidden>
     <h2>Exportar</h2>
+    <div class="panel"><span class="lbl">📦 Paquete de reproducibilidad</span>
+      <p class="note">Un solo archivo .zip con todo: protocolo, búsquedas, referencias, historial, decisiones de cribado, extracción, riesgo de sesgo, GRADE, diagrama, texto de métodos y checklist. Muchas revistas piden subirlo junto con el artículo (o en OSF o Zenodo).</p>
+      <div class="bar"><button class="btn" id="dl-paquete">📦 Descargar paquete de reproducibilidad</button></div></div>
     <p class="note">Todos los datos ya están en la planilla de Google Sheets. Desde aquí también puedes descargarlos para Excel, R, Zotero, Mendeley o Rayyan.</p>
     <div class="bar">
       <button class="btn" data-exp="busquedas.csv">Búsquedas (CSV)</button>
@@ -434,6 +529,7 @@ mark.mi{background:var(--mint)} mark.ms{background:var(--sky)} mark.mx{backgroun
   <div id="r-hist" class="hist" hidden></div>
   <div class="actions">
     <button type="button" class="btn danger left" id="r-del" hidden>Eliminar</button>
+    <button type="button" class="btn ghost" id="r-com" hidden>💬 Comentarios</button>
     <button type="button" class="btn ghost" data-close>Cerrar</button>
     <button class="btn" type="submit" id="r-save">Guardar</button>
   </div>
@@ -445,6 +541,7 @@ mark.mi{background:var(--mint)} mark.ms{background:var(--sky)} mark.mx{backgroun
       <option value="pend">Fase 1 · Título y resumen</option>
       <option value="ft">Fase 2 · Texto completo</option>
     </select>
+    <select id="c-orden" style="flex:1 1 160px" aria-label="Orden"><option value="prob">🧠 Más probables primero</option><option value="codigo">Por código</option></select>
     <button type="button" class="btn ghost" id="c-cerrar">Cerrar</button>
   </div>
   <span class="note" id="c-quien"></span>
@@ -471,6 +568,10 @@ mark.mi{background:var(--mint)} mark.ms{background:var(--sky)} mark.mx{backgroun
   <div class="bar"><h2 class="grow" id="dlg-e-title">Extracción de datos</h2><button type="button" class="btn ghost" data-close>Cerrar</button></div>
   <span class="note" id="e-ref"></span>
   <span class="note" id="e-estado"></span>
+  <span class="lbl">Categoría de exposición (para el mapa de evidencia)</span>
+  <div class="chips2" id="e-expcat"></div>
+  <span class="lbl">Categoría de efecto en salud</span>
+  <div class="chips2" id="e-descat"></div>
   <span class="lbl">Departamento(s)</span>
   <div class="chips2" id="e-deps"></div>
   <div class="grid2" id="e-campos"></div>
@@ -486,6 +587,22 @@ mark.mi{background:var(--mint)} mark.ms{background:var(--sky)} mark.mx{backgroun
   <div class="actions"><button type="button" class="btn ghost" id="s-auto">Global = el peor dominio</button><button class="btn" type="submit" id="s-guardar">Guardar</button></div>
 </form></dialog>
 
+<dialog id="dlg-com"><div class="cwrap">
+  <div class="bar"><h2 class="grow">💬 Comentarios</h2><button type="button" class="btn ghost" data-close>Cerrar</button></div>
+  <span class="note" id="com-titulo"></span>
+  <div class="list" id="com-lista"></div>
+  <span class="note">Los comentarios no son públicos. Durante el cribado doble ciego, no escribas tu decisión hasta que se resuelva el conflicto.</span>
+  <textarea id="com-texto" rows="3" placeholder="Escribe un comentario…"></textarea>
+  <div class="actions"><button type="button" class="btn" id="com-enviar">Enviar</button></div>
+</div></dialog>
+
+<dialog id="dlg-g" class="crib"><form id="form-g" class="cwrap">
+  <div class="bar"><h2 class="grow">⭐ Certeza de la evidencia (GRADE)</h2><button type="button" class="btn ghost" data-close>Cerrar</button></div>
+  <span class="note">Los estudios observacionales empiezan con certeza «baja»; baja si hay problemas (sesgo, inconsistencia, evidencia indirecta, imprecisión, sesgo de publicación) y puede subir si el efecto es grande o hay dosis-respuesta.</span>
+  <div class="grid1" id="g-campos"></div>
+  <div class="actions"><button type="button" class="btn danger left" id="g-borrar" hidden>Eliminar</button><button type="button" class="btn ghost" id="g-sugerir">Sugerir certeza</button><button class="btn" type="submit" id="g-guardar">Guardar</button></div>
+</form></dialog>
+
 <dialog id="dlg-x" class="crib"><div class="cwrap">
   <div class="bar"><h2 class="grow">⚖️ Conflictos</h2><button type="button" class="btn ghost" data-close>Cerrar</button></div>
   <span class="note">Artículos en los que el Revisor 1 y el Revisor 2 decidieron distinto. Recién acá se ven las dos decisiones. Se resuelve por consenso entre los dos o por decisión del Revisor 3, y queda registrado cómo.</span>
@@ -494,11 +611,14 @@ mark.mi{background:var(--mint)} mark.ms{background:var(--sky)} mark.mx{backgroun
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="config.js?v=16"></script>
-<script src="autocompletar.js?v=16"></script>
-<script src="importar.js?v=16"></script>
-<script src="prisma.js?v=16"></script>
-<script src="app.js?v=16"></script>
-<script src="estudios.js?v=16"></script>
+<script src="config.js?v=18"></script>
+<script src="autocompletar.js?v=18"></script>
+<script src="importar.js?v=18"></script>
+<script src="prisma.js?v=18"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+<script src="prioridad.js?v=18"></script>
+<script src="app.js?v=18"></script>
+<script src="estudios.js?v=18"></script>
+<script src="extras.js?v=18"></script>
 </body>
 </html>
