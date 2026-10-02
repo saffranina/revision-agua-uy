@@ -42,6 +42,7 @@ const ESTADOS = {
   ft: 'A texto completo',
   extc: 'Excluida a texto completo',
   inc: 'Incluida',
+  nr: 'Texto completo no recuperado',
 };
 
 // Columnas de cada hoja: [clave interna, encabezado visible]
@@ -51,6 +52,7 @@ const HOJAS = {
     ['cadena', 'Cadena de búsqueda'], ['filtros', 'Filtros'], ['campos', 'Campos buscados'],
     ['n', 'Resultados'], ['notas', 'Notas'],
     ['creado', 'Registrada el'], ['actualizado', 'Última edición'], ['link', 'Link de resultados'],
+    ['metodo', 'Método (bases / otros)'],
   ],
   Referencias: [
     ['codigo', 'Código'], ['titulo', 'Título'], ['autores', 'Autores'], ['anio', 'Año'],
@@ -66,6 +68,27 @@ const HOJAS = {
     ['fecha', 'Fecha y hora'], ['codigo', 'Código'], ['accion', 'Acción'], ['detalle', 'Detalle'],
   ],
   // Decisiones de cada revisor (privadas: la página pública no las muestra)
+  // Protocolo: pregunta PECO, criterios, PROSPERO y palabras para resaltar
+  Protocolo: [['clave', 'Campo'], ['valor', 'Valor']],
+  // Extracción de datos de cada estudio incluido
+  Extraccion: [
+    ['codigo', 'Código'], ['diseno', 'Diseño del estudio'], ['poblacion', 'Población'], ['n', 'Tamaño de muestra'],
+    ['departamento', 'Departamento(s)'], ['periodo', 'Período del estudio'], ['fuente', 'Fuente de agua'],
+    ['contaminante', 'Exposición / contaminante'], ['medicionExp', 'Medición de la exposición'],
+    ['desenlace', 'Desenlace en salud'], ['medicionDes', 'Medición del desenlace'], ['efecto', 'Medida de efecto'],
+    ['resultados', 'Resultados principales'], ['confusores', 'Ajuste por confusores'], ['financiamiento', 'Financiamiento / conflictos'],
+    ['notas', 'Notas'], ['extraidoPor', 'Extraído por'], ['fecha', 'Fecha de extracción'],
+    ['verificadoPor', 'Verificado por'], ['fechaVerif', 'Fecha de verificación'],
+  ],
+  // Riesgo de sesgo (ROBINS-E: 7 dominios + juicio global)
+  Sesgo: [
+    ['codigo', 'Código'], ['herramienta', 'Herramienta'],
+    ['d1', 'D1 Confusión'], ['j1', 'D1 Justificación'], ['d2', 'D2 Medición de la exposición'], ['j2', 'D2 Justificación'],
+    ['d3', 'D3 Selección de participantes'], ['j3', 'D3 Justificación'], ['d4', 'D4 Intervenciones posteriores a la exposición'], ['j4', 'D4 Justificación'],
+    ['d5', 'D5 Datos faltantes'], ['j5', 'D5 Justificación'], ['d6', 'D6 Medición del desenlace'], ['j6', 'D6 Justificación'],
+    ['d7', 'D7 Selección del resultado reportado'], ['j7', 'D7 Justificación'], ['global', 'Riesgo global'], ['jg', 'Justificación global'],
+    ['evaluador', 'Evaluado por'], ['fecha', 'Fecha'],
+  ],
   Decisiones: [
     ['fecha', 'Fecha y hora'], ['codigo', 'Código'], ['fase', 'Fase'], ['revisor', 'Revisor'],
     ['decision', 'Decisión'], ['motivo', 'Motivo'], ['metodo', 'Cómo se resolvió'],
@@ -75,8 +98,11 @@ const PRIVADAS = ['Decisiones'];
 
 // Fase 1 = título y resumen; fase 2 = texto completo
 const FASE_ESTADO = { 1: 'pend', 2: 'ft' };
-const RESULTADO = { 1: { si: 'ft', no: 'exta', dup: 'dup' }, 2: { si: 'inc', no: 'extc' } };
-const DECISION_TXT = { si: 'Sí', no: 'Excluir', dup: 'Duplicado' };
+// "Quizás" en la fase 1 pasa a texto completo (ante la duda se incluye) pero queda registrado como Quizás
+const RESULTADO = { 1: { si: 'ft', quiza: 'ft', no: 'exta', dup: 'dup' }, 2: { si: 'inc', no: 'extc', nr: 'nr' } };
+const DECISION_TXT = { si: 'Sí', quiza: 'Quizás', no: 'Excluir', dup: 'Duplicado', nr: 'Texto completo no conseguido' };
+// Para comparar a los revisores, Quizás cuenta como Sí
+const norm_ = (d) => (d === 'quiza' ? 'si' : d);
 
 /* ---------- Entrada web ---------- */
 
@@ -114,6 +140,12 @@ function doPost(e) {
       case 'misDecisiones': return json_({ ok: true, ...misDecisiones_(rol) });
       case 'conflictos': return json_({ ok: true, conflictos: conflictos_() });
       case 'resolver': return json_({ ok: true, ...resolver_(rol, d) });
+      case 'guardarProtocolo':
+        if (!rol.admin) throw new Error('El protocolo lo edita quien administra.');
+        guardarProtocolo_(d); return json_({ ok: true });
+      case 'guardarExtraccion': return json_({ ok: true, ...guardarExtraccion_(rol, d) });
+      case 'verificarExtraccion': return json_({ ok: true, ...verificarExtraccion_(rol, d) });
+      case 'guardarSesgo': return json_({ ok: true, ...guardarSesgo_(rol, d) });
       case 'guardarBusqueda': return json_({ ok: true, id: guardarBusqueda_(d) });
       case 'borrarBusqueda': borrarFila_('Busquedas', 'id', d.id); return json_({ ok: true });
       case 'guardarReferencia': return json_({ ok: true, ...guardarReferencia_(d, rol) });
@@ -142,7 +174,7 @@ function guardarBusqueda_(d) {
   const reg = {
     id: d.id || 'B' + Utilities.getUuid().slice(0, 8),
     base: d.base, fecha: d.fecha, cadena: d.cadena, filtros: d.filtros, campos: d.campos,
-    n: Number(d.n) || 0, notas: d.notas, link: d.link || '',
+    n: Number(d.n) || 0, notas: d.notas, link: d.link || '', metodo: d.metodo === 'otros' ? 'otros' : 'bases',
     creado: previo.creado || ahora, actualizado: ahora,
   };
   escribirFila_(hoja, fila, reg);
@@ -309,9 +341,10 @@ function evaluar_(codigo, fase) {
   if (ds.some((x) => x.revisor === 'Resolución')) return {};
   const r1 = ds.find((x) => x.revisor === 'Revisor 1'), r2 = ds.find((x) => x.revisor === 'Revisor 2');
   if (!r1 || !r2) return { estado: 'esperando' };
-  if (r1.decision !== r2.decision) return { estado: 'conflicto' };
+  if (norm_(r1.decision) !== norm_(r2.decision)) return { estado: 'conflicto' };
   const motivo = [...new Set([r1.motivo, r2.motivo].filter(Boolean))].join(' / ');
-  aplicarEstado_(codigo, RESULTADO[fase][r1.decision], motivo, 'acuerdo Revisor 1 y Revisor 2');
+  const quiza = r1.decision === 'quiza' || r2.decision === 'quiza' ? ', con Quizás' : '';
+  aplicarEstado_(codigo, RESULTADO[fase][norm_(r1.decision)], motivo, 'acuerdo Revisor 1 y Revisor 2' + quiza);
   return { estado: 'acuerdo' };
 }
 
@@ -349,7 +382,7 @@ function conflictos_() {
   ds.forEach((x) => { (grupos[x.codigo + '|' + x.fase] = grupos[x.codigo + '|' + x.fase] || []).push(x); });
   return Object.values(grupos).map((g) => {
     const r1 = g.find((x) => x.revisor === 'Revisor 1'), r2 = g.find((x) => x.revisor === 'Revisor 2');
-    if (!r1 || !r2 || r1.decision === r2.decision || g.some((x) => x.revisor === 'Resolución')) return null;
+    if (!r1 || !r2 || norm_(r1.decision) === norm_(r2.decision) || g.some((x) => x.revisor === 'Resolución')) return null;
     if (refs[r1.codigo] !== FASE_ESTADO[r1.fase]) return null;
     const v = (x) => ({ decision: x.decision, texto: DECISION_TXT[x.decision], motivo: x.motivo });
     return { codigo: r1.codigo, fase: Number(r1.fase), r1: v(r1), r2: v(r2) };
@@ -375,7 +408,7 @@ function acuerdo_() {
   const ds = decisiones_(), out = {};
   [1, 2].forEach((fase) => {
     const por = {};
-    ds.filter((x) => x.fase === String(fase)).forEach((x) => { (por[x.codigo] = por[x.codigo] || {})[x.revisor] = x.decision; });
+    ds.filter((x) => x.fase === String(fase)).forEach((x) => { (por[x.codigo] = por[x.codigo] || {})[x.revisor] = norm_(x.decision); });
     const pares = Object.values(por).filter((p) => p['Revisor 1'] && p['Revisor 2']).map((p) => [p['Revisor 1'], p['Revisor 2']]);
     const n = pares.length;
     if (!n) { out['fase' + fase] = { n: 0 }; return; }
@@ -383,9 +416,63 @@ function acuerdo_() {
     const cats = [...new Set(pares.flat())];
     const pe = cats.reduce((s, c) => s + (pares.filter(([a]) => a === c).length / n) * (pares.filter(([, b]) => b === c).length / n), 0);
     const po = iguales / n;
-    out['fase' + fase] = { n, acuerdo: po, kappa: pe === 1 ? 1 : (po - pe) / (1 - pe), conflictos: n - iguales };
+    const res = ds.filter((x) => x.fase === String(fase) && x.revisor === 'Resolución');
+    out['fase' + fase] = {
+      n, acuerdo: po, kappa: pe === 1 ? 1 : (po - pe) / (1 - pe), conflictos: n - iguales,
+      consenso: res.filter((x) => /^Consenso/.test(x.metodo)).length, tercero: res.filter((x) => /Revisor 3/.test(x.metodo)).length,
+    };
   });
   return out;
+}
+
+/* ---------- Protocolo, extracción y riesgo de sesgo ---------- */
+
+function guardarProtocolo_(d) {
+  const hoja = hoja_('Protocolo');
+  Object.keys(d).forEach((k) => {
+    const fila = buscarFila_(hoja, 'clave', k);
+    escribirFila_(hoja, fila, { clave: k, valor: d[k] == null ? '' : String(d[k]) });
+  });
+  historial_('', 'Protocolo actualizado', Object.keys(d).join(', '));
+}
+
+function quien_(rol) { return rol.revisor || 'administración'; }
+
+function guardarExtraccion_(rol, d) {
+  const hoja = hoja_('Extraccion');
+  const fila = buscarFila_(hoja, 'codigo', d.codigo);
+  const previo = fila > 0 ? leerFila_(hoja, fila) : {};
+  const reg = { ...previo };
+  HOJAS.Extraccion.forEach(([k]) => { if (d[k] !== undefined && !['extraidoPor', 'fecha', 'verificadoPor', 'fechaVerif'].includes(k)) reg[k] = d[k]; });
+  reg.codigo = d.codigo; reg.extraidoPor = quien_(rol); reg.fecha = ahora_();
+  // Si cambian los datos, la verificación anterior deja de valer
+  reg.verificadoPor = ''; reg.fechaVerif = '';
+  escribirFila_(hoja, fila, reg);
+  historial_(d.codigo, 'Extracción de datos', 'por ' + reg.extraidoPor);
+  return { codigo: d.codigo };
+}
+
+function verificarExtraccion_(rol, d) {
+  const hoja = hoja_('Extraccion');
+  const fila = buscarFila_(hoja, 'codigo', d.codigo);
+  if (fila < 0) throw new Error('Todavía no hay datos extraídos de ' + d.codigo + '.');
+  const reg = leerFila_(hoja, fila);
+  if (reg.extraidoPor === quien_(rol)) throw new Error('La verificación la hace otra persona, no quien extrajo los datos.');
+  reg.verificadoPor = quien_(rol); reg.fechaVerif = ahora_();
+  escribirFila_(hoja, fila, reg);
+  historial_(d.codigo, 'Extracción verificada', 'por ' + reg.verificadoPor);
+  return { codigo: d.codigo };
+}
+
+function guardarSesgo_(rol, d) {
+  const hoja = hoja_('Sesgo');
+  const fila = buscarFila_(hoja, 'codigo', d.codigo);
+  const reg = { codigo: d.codigo };
+  HOJAS.Sesgo.forEach(([k]) => { if (d[k] !== undefined) reg[k] = d[k]; });
+  reg.codigo = d.codigo; reg.herramienta = d.herramienta || 'ROBINS-E'; reg.evaluador = quien_(rol); reg.fecha = ahora_();
+  escribirFila_(hoja, fila, reg);
+  historial_(d.codigo, 'Riesgo de sesgo', (reg.global || 'sin juicio global') + ' · por ' + reg.evaluador);
+  return { codigo: d.codigo };
 }
 
 function hojaObjetos_(nombre) {
