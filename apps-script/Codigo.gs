@@ -82,6 +82,7 @@ function doPost(e) {
       case 'borrarBusqueda': borrarFila_('Busquedas', 'id', d.id); return json_({ ok: true });
       case 'guardarReferencia': return json_({ ok: true, ...guardarReferencia_(d) });
       case 'importarReferencias': return json_({ ok: true, ...importarReferencias_(d) });
+      case 'traerUrl': return json_({ ok: true, ...traerUrl_(d.url) });
       case 'borrarReferencia':
         borrarFila_('Referencias', 'codigo', d.codigo);
         historial_(d.codigo, 'Eliminada', '');
@@ -215,6 +216,16 @@ function importarReferencias_(d) {
     hh.getRange(hh.getLastRow() + 1, 1, hist.length, 4).setNumberFormat('@').setValues(hist);
   }
   return { codigos };
+}
+
+// Baja un hilo RSS/Atom o un XML de otro sitio (los navegadores no dejan
+// que la página lo haga directamente). Solo con la clave de edición.
+function traerUrl_(url) {
+  if (!/^https?:\/\//i.test(String(url || ''))) throw new Error('Link inválido.');
+  const r = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true, headers: { Accept: 'application/atom+xml, application/rss+xml, application/xml, text/xml, */*' } });
+  const texto = r.getContentText();
+  if (texto.length > 8 * 1024 * 1024) throw new Error('La respuesta es demasiado grande.');
+  return { status: r.getResponseCode(), texto };
 }
 
 function siguienteCodigo_(hoja) {

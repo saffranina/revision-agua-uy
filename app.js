@@ -205,6 +205,7 @@ function openB(id) {
   const hist = id ? [{ fecha: d.creado, accion: "Registrada" }, ...(d.actualizado && d.actualizado !== d.creado ? [{ fecha: d.actualizado, accion: "Última edición" }] : [])] : [];
   $("#b-hist").innerHTML = histHtml(hist); $("#b-hist").hidden = !id;
   $("#bl-url").value = ""; $("#imp-file").value = ""; $("#imp-res").hidden = true; importando = null;
+  $("#feed-url").value = ""; $("#feed-box").open = false;
   $("#b-link").value = d.link || ((String(d.notas || "").match(/Link de resultados: (\S+)/) || [])[1] || ""); mostrarPm();
   lock($("#form-b")); $("#dlg-b").showModal();
 }
@@ -295,7 +296,7 @@ $("#imp-file").onchange = async e => {
   let leido;
   try { leido = Importar.leer(await f.text()) }
   catch (err) { $("#imp-res").hidden = false; $("#imp-res").innerHTML = `<span class="uycheck warn">No reconozco el formato de «${esc(f.name)}». Usa el formato PubMed, RIS o XML.</span>`; importando = null; return }
-  const nombres = { ris: "RIS", pubmed: "PubMed", xml: "XML de PubMed", dc: "XML de repositorio" };
+  const nombres = { ris: "RIS", pubmed: "PubMed", xml: "XML de PubMed", dc: "XML de repositorio", feed: "hilo RSS/Atom" };
   mostrarImportacion(f.name, `en el archivo (${nombres[leido.formato]})`, leido);
 };
 // Muestra el resumen de lo que se va a importar y lo deja listo para guardar
@@ -320,7 +321,7 @@ function mostrarImportacion(origen, donde, leido, aviso) {
   const etiqueta = () => {
     const n = refs.length - (chk && !chk.checked ? dups : 0), t = `${n} artículo${n === 1 ? "" : "s"}`;
     if (go) go.textContent = "Importar " + t;
-    if (nota) nota.textContent = `Al guardar la búsqueda se cargan ${t} en Referencias.`;
+    if (nota) nota.textContent = `Al guardar la búsqueda se ${n === 1 ? "carga" : "cargan"} ${t} en Referencias.`;
   };
   if (chk) chk.onchange = etiqueta;
   etiqueta();
@@ -345,7 +346,29 @@ $("#bl-btn").onclick = () => {
   toast(d.cadena ? `Listo: ${d.base}${d.filtros ? ", con filtros" : ""}. Revisa los campos y completa la cantidad de resultados si no adjuntas archivo.`
     : `Reconocí ${d.base}, pero el link no trae la búsqueda escrita. Cópiala a mano en «Cadena de búsqueda».`, 6000);
 };
-function mostrarPm() { $("#pm-btn").hidden = !/pubmed\.ncbi\.nlm\.nih\.gov\/.*term=/i.test($("#b-link").value) }
+function mostrarPm() {
+  $("#pm-btn").hidden = !/pubmed\.ncbi\.nlm\.nih\.gov\/.*term=/i.test($("#b-link").value);
+  const hilo = Importar.linkHiloColibri($("#b-link").value);
+  if (hilo && !$("#feed-url").value) { $("#feed-url").value = hilo; $("#feed-box").open = true }
+}
+$("#feed-btn").onclick = async () => {
+  const url = $("#feed-url").value.trim() || Importar.linkHiloColibri($("#b-link").value);
+  if (!/^https?:\/\//i.test(url)) { toast("Pega el link del hilo RSS/Atom o del XML."); return }
+  $("#feed-url").value = url;
+  const btn = $("#feed-btn"); btn.disabled = true;
+  try {
+    const leido = await Importar.traerHilo(url, async u => api("traerUrl", { url: u }), t => btn.textContent = t);
+    const avisos = [];
+    if (leido.total > leido.refs.length) avisos.push(`El sitio dice que hay ${leido.total} resultados y llegaron ${leido.refs.length}.`);
+    // El hilo de Colibri solo usa el texto buscado: los filtros (años, tipo…) no se aplican
+    if (/colibri/.test(url) && $("#b-filtros").value.trim()) avisos.push("El hilo de Colibri no aplica los filtros de la búsqueda (años, tipo de documento…): trae todo lo que coincide con el texto. Compara la cantidad con la de Colibri y descarta lo que no corresponda al cribar.");
+    const aviso = avisos.join(" ");
+    mostrarImportacion(new URL(url).hostname, "traídos del hilo", leido, aviso);
+  } catch (e) {
+    toast(e.message === "Acción desconocida." ? "Para traer hilos hay que actualizar el código del motor (Apps Script)."
+      : "No pude traer el hilo: " + e.message + ". Prueba descargarlo y adjuntarlo como archivo.", 8000);
+  } finally { btn.disabled = false; btn.textContent = "Traer" }
+};
 $("#b-link").addEventListener("input", mostrarPm);
 $("#bl-url").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("#bl-btn").click() } });
 // Carga los artículos del archivo en la búsqueda indicada (de a 50 por pedido)

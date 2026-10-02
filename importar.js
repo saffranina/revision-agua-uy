@@ -8,6 +8,7 @@
   function detectar(texto) {
     const t = texto.slice(0, 5000);
     if (/<PubmedArticle[\s>]/.test(t) || /<PubmedArticleSet/.test(t)) return "xml";
+    if (/<rss[\s>]|<feed[\s>][^>]*Atom|<feed\s+xmlns="http:\/\/www\.w3\.org\/2005\/Atom"/i.test(t) || (/<feed[\s>]/.test(t) && /<entry[\s>]/.test(texto))) return "feed";
     if (/^\s*</.test(t) && /(dc:title|<dim:|element="title"|<title[\s>])/.test(t)) return "dc";
     if (/^PMID- /m.test(t)) return "pubmed";
     if (/^TY  - /m.test(t)) return "ris";
@@ -70,6 +71,70 @@
         afiliaciones: "",
       };
     });
+  }
+
+  // Hilo de sindicación RSS 2.0 o Atom (también OpenSearch de DSpace/Colibri)
+  function feed(texto) {
+    const doc = new DOMParser().parseFromString(texto, "text/xml");
+    const items = Array.from(doc.getElementsByTagName("*")).filter(e => e.localName === "item" || e.localName === "entry");
+    const hijos = (el, ...nombres) => Array.from(el.children).filter(h => nombres.includes(h.localName));
+    const txt = (el, ...nombres) => hijos(el, ...nombres).map(h => limpio(h.textContent)).filter(Boolean);
+    return items.map(it => {
+      const linkEl = hijos(it, "link")[0];
+      const link = linkEl ? (linkEl.getAttribute("href") || limpio(linkEl.textContent)) : (txt(it, "guid", "id")[0] || "");
+      const autores = txt(it, "creator", "contributor").concat(hijos(it, "author").map(a => {
+        const n = Array.from(a.children).find(c => c.localName === "name"); return limpio(n ? n.textContent : a.textContent);
+      })).filter(Boolean);
+      const resumen = txt(it, "description", "summary", "abstract", "content").join(" ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      const ids = txt(it, "identifier").concat([link]).join(" ");
+      const doi = (ids.match(/10\.\d{4,9}\/[^\s"<>]+/) || [""])[0];
+      return {
+        titulo: sinPunto(txt(it, "title")[0]),
+        autores: autores.join("; "),
+        anio: ((txt(it, "date", "issued", "published", "pubDate", "updated")[0] || "").match(/\d{4}/) || [""])[0],
+        revista: txt(it, "publisher", "source")[0] || "",
+        doi, link, resumen, afiliaciones: "",
+      };
+    });
+  }
+  // OpenSearch dice cuántos resultados hay en total
+  function totalFeed(texto) {
+    const m = texto.match(/<(?:\w+:)?totalResults>(\d+)</);
+    return m ? Number(m[1]) : null;
+  }
+
+  // Colibri (DSpace) arma un hilo Atom con los resultados de cualquier búsqueda
+  function linkHiloColibri(link) {
+    let u; try { u = new URL(link) } catch (e) { return "" }
+    if (!/colibri\.udelar/.test(u.hostname)) return "";
+    const q = u.searchParams.get("query") || u.searchParams.get("q");
+    if (!q) return "";
+    const base = /\/jspui\//.test(u.pathname) ? u.origin + "/jspui/open-search/" : u.origin + "/server/opensearch/search";
+    const p = new URLSearchParams({ query: q, format: "atom", rpp: "100", start: "0" });
+    const scope = u.searchParams.get("scope") || (u.pathname.match(/\/handle\/([^/]+\/[^/]+)/) || [])[1];
+    if (scope) p.set("scope", scope);
+    return base + "?" + p.toString();
+  }
+
+  // Trae un hilo o XML por medio del motor, siguiendo las páginas de OpenSearch
+  async function traerHilo(url, pedir, progreso) {
+    const refs = []; let total = null, pagina = 0, u = new URL(url);
+    const paginado = u.searchParams.has("start") || u.searchParams.has("rpp");
+    while (true) {
+      progreso(refs.length ? `Trayendo… ${refs.length}${total ? " de " + total : ""}` : "Trayendo…");
+      const r = await pedir(u.href);
+      if (r.status >= 400) throw new Error(`el sitio respondió con error ${r.status}`);
+      const formato = detectar(r.texto);
+      if (!formato) throw new Error("lo que devolvió el link no es un hilo RSS/Atom ni un XML que reconozca");
+      const nuevos = ({ feed, dc, xml, ris, pubmed })[formato](r.texto).filter(x => x.titulo);
+      if (total == null) total = totalFeed(r.texto);
+      refs.push(...nuevos);
+      pagina++;
+      const rpp = Number(u.searchParams.get("rpp")) || nuevos.length;
+      if (!paginado || !nuevos.length || nuevos.length < rpp || (total != null && refs.length >= total) || refs.length >= 5000 || pagina > 60) break;
+      u.searchParams.set("start", String(Number(u.searchParams.get("start") || 0) + rpp));
+    }
+    return { refs, total: total ?? refs.length, base: /colibri/.test(u.hostname) ? "Colibri (UdelaR)" : /scielo/.test(u.hostname) ? "SciELO" : "" };
   }
 
   // Adivina la base de datos a partir del archivo
@@ -192,7 +257,7 @@
   function leer(texto) {
     const formato = detectar(texto);
     if (!formato) throw new Error("formato");
-    const lector = { ris, pubmed, xml, dc }[formato];
+    const lector = { ris, pubmed, xml, dc, feed }[formato];
     const refs = lector(texto).filter(r => r.titulo);
     return { formato, refs, base: baseDeArchivo(formato, refs) };
   }
@@ -257,5 +322,5 @@
     return { refs, base: "PubMed/MEDLINE", total, aviso: avisos.join(" ") };
   }
 
-  window.Importar = { leer, marcarDuplicados, leerLink, traerPubmed };
+  window.Importar = { leer, marcarDuplicados, leerLink, traerPubmed, traerHilo, linkHiloColibri };
 })();

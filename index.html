@@ -198,6 +198,13 @@ dialog.crib{width:min(760px,calc(100vw - 16px));max-height:calc(100vh - 16px)}
     <label class="btn ghost filebtn">Adjuntar archivo de resultados<input id="imp-file" type="file" accept=".txt,.nbib,.ris,.xml,text/plain,application/xml,text/xml" hidden></label>
     <span class="note">PubMed (Save → Format: PubMed), RIS o XML. Cuento los resultados y cargo los artículos. Con un link de PubMed no hace falta archivo: toca «Traer artículos de PubMed».</span>
     <button type="button" class="btn ghost" id="pm-btn" hidden>Traer artículos de PubMed</button>
+    <details id="feed-box"><summary class="note">Traer desde un hilo de sindicación (RSS/Atom) o un XML en línea</summary>
+      <div class="bar" style="margin-top:6px">
+        <input class="grow" id="feed-url" type="url" inputmode="url" placeholder="Link del hilo RSS/Atom o del XML" autocomplete="off">
+        <button type="button" class="btn ghost" id="feed-btn">Traer</button>
+      </div>
+      <span class="note">Con un link de búsqueda de Colibri lo armo solo.</span>
+    </details>
     <div id="imp-res" class="oa" hidden></div>
   </div>
   <div class="grid2">
@@ -303,9 +310,9 @@ dialog.crib{width:min(760px,calc(100vw - 16px));max-height:calc(100vh - 16px)}
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="config.js?v=6"></script>
-<script src="autocompletar.js?v=6"></script>
-<script src="importar.js?v=6"></script>
-<script src="app.js?v=6"></script>
+<script src="config.js?v=7"></script>
+<script src="autocompletar.js?v=7"></script>
+<script src="importar.js?v=7"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>
