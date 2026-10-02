@@ -31,8 +31,8 @@ body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--f-body)}
 .wrap{max-width:860px;margin:0 auto;padding-inline:16px;padding-block:20px 110px}
 header h1{font-family:var(--f-display);font-weight:650;font-size:1.55rem;line-height:1.2;margin:0;text-wrap:balance}
 header p{margin:.25rem 0 0;color:var(--muted);font-size:.92rem}
-nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
-nav.tabs button{flex:1;border:0;background:none;color:var(--muted);font:600 .82rem var(--f-body);padding:12px 4px;cursor:pointer;border-top:3px solid transparent}
+nav.tabs{overflow-x:auto;scrollbar-width:none;position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav.tabs button{flex:1 0 auto;border:0;background:none;color:var(--muted);font:600 .8rem var(--f-body);padding:12px 9px;cursor:pointer;border-top:3px solid transparent}
 nav.tabs button[aria-selected="true"]{color:var(--accent);border-top-color:var(--accent)}
 @media (min-width:760px){
   nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);bottom:auto;border:1px solid var(--line);border-radius:10px;margin-top:16px;padding:0;overflow:hidden}
@@ -41,6 +41,7 @@ nav.tabs button[aria-selected="true"]{color:var(--accent);border-top-color:var(-
   .wrap{padding-bottom:40px}
 }
 section.view{display:grid;gap:14px;margin-top:18px}
+section.view>*{min-width:0}
 .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .bar .grow{flex:1 1 180px;min-width:0}
 h2{font-family:var(--f-display);font-weight:650;font-size:1.15rem;margin:0}
@@ -135,6 +136,26 @@ mark.mi{background:#c9f0d4;color:inherit;border-radius:3px;padding:0 2px} mark.m
 .chips button:hover{border-color:var(--bad);color:var(--bad)}
 .ckeys{display:none}
 @media (hover:hover){.ckeys{display:block}}
+.grid1{display:grid;gap:12px}
+.item.nohover{cursor:default} .item.nohover:hover{border-color:var(--line)}
+.mapa{max-width:520px;width:100%;min-width:0}
+.mapa svg{width:100%;height:auto;display:block}
+.mapa .t0{fill:var(--surface);stroke:var(--line)} .mapa .t1{fill:#cfe5ee} .mapa .t2{fill:#8fc3d6} .mapa .t3{fill:#4a9ab8} .mapa .t4{fill:#17607a}
+.mapa .tn{font:600 11px var(--f-body);fill:var(--ink)} .mapa .tc{font:500 20px var(--f-mono);fill:var(--ink)}
+.mapa .t3 ~ text,.mapa .t4 ~ text{fill:#fff}
+.dot{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;font:700 13px var(--f-body);color:#fff;background:#bbb}
+.dot.rb{background:#2e8b57} .dot.rm{background:#e0b020} .dot.ra{background:#c0392b} .dot.rv{background:#6b1d1d} .dot.rs{background:#8a8f96}
+.pill.rb{color:#2e8b57} .pill.rm{color:#b8860b} .pill.ra{color:#c0392b} .pill.rv{color:#6b1d1d} .pill.rs{color:var(--muted)}
+table.sem td,table.sem th{text-align:center} table.sem td:first-child,table.sem th:first-child{text-align:left}
+.leyenda{display:flex;flex-wrap:wrap;gap:12px;font-size:.85rem;color:var(--muted);align-items:center}
+.leyenda>span{display:inline-flex;gap:6px;align-items:center}
+.dom{display:grid;gap:6px;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.dom.glob{border-color:var(--accent)}
+.chips2{display:flex;flex-wrap:wrap;gap:6px 14px}
+.chk{display:inline-flex;align-items:center;gap:6px;font-weight:400;color:var(--ink);font-size:.9rem}
+.chk input{width:auto}
+details.crit{border:1px dashed var(--line);border-radius:8px;padding:6px 10px}
+details.crit .abs{white-space:pre-wrap;font-size:.9rem;margin-bottom:6px}
 .progress{font-size:.85rem;color:var(--accent);font-weight:600}
 </style>
 </head>
@@ -150,11 +171,20 @@ mark.mi{background:#c9f0d4;color:inherit;border-radius:3px;padding:0 2px} mark.m
   </header>
 
   <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="protocolo" aria-selected="false">Protocolo</button>
     <button role="tab" data-tab="busquedas" aria-selected="true">Búsquedas</button>
     <button role="tab" data-tab="referencias" aria-selected="false">Referencias</button>
+    <button role="tab" data-tab="estudios" aria-selected="false">Estudios</button>
     <button role="tab" data-tab="prisma" aria-selected="false">PRISMA</button>
     <button role="tab" data-tab="exportar" aria-selected="false">Exportar</button>
   </nav>
+
+  <section class="view" id="v-protocolo" hidden>
+    <h2>Protocolo de la revisión</h2>
+    <p class="note">La pregunta, los criterios y las palabras para resaltar. Los criterios se ven también mientras cribas. <span id="prot-estado"></span></p>
+    <div class="grid1" id="prot-form"></div>
+    <div class="bar" id="prot-acciones" hidden><button class="btn" id="prot-guardar">Guardar protocolo</button><button class="btn ghost" id="prot-ejemplo">Completar vacíos con un ejemplo</button></div>
+  </section>
 
   <section class="view" id="v-busquedas">
     <div class="bar"><h2 class="grow">Búsquedas realizadas</h2><button class="btn admin-only" id="add-b">+ Nueva búsqueda</button></div>
@@ -172,6 +202,20 @@ mark.mi{background:#c9f0d4;color:inherit;border-radius:3px;padding:0 2px} mark.m
       <select id="f-busq" style="flex:0 1 220px"></select>
     </div>
     <div class="list" id="list-r"></div>
+  </section>
+
+  <section class="view" id="v-estudios" hidden>
+    <h2>Estudios incluidos</h2>
+    <p class="note">Para cada estudio incluido: extracción de datos (verificada por una segunda persona) y riesgo de sesgo.</p>
+    <div class="list" id="est-list"></div>
+    <h2>Mapa de Uruguay</h2>
+    <div class="mapa" id="mapa"></div>
+    <p class="note" id="mapa-nota"></p>
+    <h2>Riesgo de sesgo</h2>
+    <div id="semaforo"></div>
+    <h2>Características de los estudios</h2>
+    <div id="tabla-ext"></div>
+    <div class="bar"><button class="btn ghost" id="dl-ext">Descargar extracción (CSV)</button></div>
   </section>
 
   <section class="view" id="v-prisma" hidden>
@@ -329,6 +373,7 @@ mark.mi{background:#c9f0d4;color:inherit;border-radius:3px;padding:0 2px} mark.m
   </div>
   <span class="note" id="c-quien"></span>
   <div class="cprog"><span id="c-prog"></span><span><button type="button" class="btn ghost" id="c-undo" style="padding:3px 10px" hidden>↩ Deshacer</button> <span id="c-guard"></span></span></div>
+  <details class="crit"><summary class="note">📋 Ver criterios de inclusión y exclusión</summary><div id="crib-criterios"></div></details>
   <div id="c-card" class="ccard"></div>
   <div id="c-excl" class="cexcl" hidden>
     <span class="lbl">Motivo de exclusión</span>
@@ -346,6 +391,25 @@ mark.mi{background:#c9f0d4;color:inherit;border-radius:3px;padding:0 2px} mark.m
   <span class="note ckeys">Teclado: <b>S</b> sí · <b>Q</b> quizás · <b>N</b> excluir · <b>D</b> duplicado · <b>C</b> no se consiguió · <b>→</b> saltar · <b>←</b> anterior</span>
 </div></dialog>
 
+<dialog id="dlg-e" class="crib"><form id="form-e" class="cwrap">
+  <div class="bar"><h2 class="grow" id="dlg-e-title">Extracción de datos</h2><button type="button" class="btn ghost" data-close>Cerrar</button></div>
+  <span class="note" id="e-ref"></span>
+  <span class="note" id="e-estado"></span>
+  <span class="lbl">Departamento(s)</span>
+  <div class="chips2" id="e-deps"></div>
+  <div class="grid2" id="e-campos"></div>
+  <div class="actions"><button type="button" class="btn cok" id="e-verif" hidden>✓ Verifiqué estos datos</button><button class="btn" type="submit" id="e-guardar">Guardar</button></div>
+</form></dialog>
+
+<dialog id="dlg-s" class="crib"><form id="form-s" class="cwrap">
+  <div class="bar"><h2 class="grow" id="dlg-s-title">Riesgo de sesgo</h2><button type="button" class="btn ghost" data-close>Cerrar</button></div>
+  <span class="note" id="s-ref"></span>
+  <span class="note">ROBINS-E: herramienta para estudios observacionales de exposiciones ambientales. Responde cada dominio según lo que dice el artículo.</span>
+  <div class="grid1" id="s-dominios"></div>
+  <span class="note" id="s-estado"></span>
+  <div class="actions"><button type="button" class="btn ghost" id="s-auto">Global = el peor dominio</button><button class="btn" type="submit" id="s-guardar">Guardar</button></div>
+</form></dialog>
+
 <dialog id="dlg-x" class="crib"><div class="cwrap">
   <div class="bar"><h2 class="grow">⚖️ Conflictos</h2><button type="button" class="btn ghost" data-close>Cerrar</button></div>
   <span class="note">Artículos en los que el Revisor 1 y el Revisor 2 decidieron distinto. Recién acá se ven las dos decisiones. Se resuelve por consenso entre los dos o por decisión del Revisor 3, y queda registrado cómo.</span>
@@ -354,10 +418,11 @@ mark.mi{background:#c9f0d4;color:inherit;border-radius:3px;padding:0 2px} mark.m
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="config.js?v=11"></script>
-<script src="autocompletar.js?v=11"></script>
-<script src="importar.js?v=11"></script>
-<script src="prisma.js?v=11"></script>
-<script src="app.js?v=11"></script>
+<script src="config.js?v=12"></script>
+<script src="autocompletar.js?v=12"></script>
+<script src="importar.js?v=12"></script>
+<script src="prisma.js?v=12"></script>
+<script src="app.js?v=12"></script>
+<script src="estudios.js?v=12"></script>
 </body>
 </html>

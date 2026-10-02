@@ -108,7 +108,11 @@ function setModo() {
   $("#mode").textContent = on ? "✏️ " + quien : "🔒 Solo lectura";
   $("#mode").classList.toggle("on", on);
   $("#crib-btn").hidden = !on || (!rol.admin && rol.revisor === "Revisor 3");
+  // Lo que depende de quién entró se vuelve a dibujar
+  renderExtra();
 }
+// Protocolo y estudios viven en estudios.js, que carga después
+function renderExtra() { if (typeof renderEstudios === "function") { renderProtocolo(); renderEstudios() } }
 async function actualizarRol() {
   if (!clave) return;
   try {
@@ -238,7 +242,7 @@ function acuerdoHtml() {
   return `<div class="stage">Acuerdo entre revisores (kappa de Cohen)</div>${fila("Fase 1 · título y resumen", ACU.fase1)}${fila("Fase 2 · texto completo", ACU.fase2)}`;
 }
 function renderAll() {
-  renderB(); renderR(); renderP();
+  renderB(); renderR(); renderP(); renderExtra();
   fill($("#r-busqueda"), B.map(b => [b.id, `${b.base} · ${fdate(b.fecha)}`]), "Sin asociar");
   const fb = $("#f-busq").value;
   fill($("#f-busq"), B.map(b => [b.id, `${b.base} · ${fdate(b.fecha)}`]), "Todas las búsquedas");
