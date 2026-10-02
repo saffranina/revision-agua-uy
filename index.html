@@ -273,6 +273,7 @@ details.crit .abs{white-space:pre-wrap;font-size:.9rem;margin-bottom:6px}
     <label class="btn ghost filebtn">Adjuntar archivo de resultados<input id="imp-file" type="file" accept=".txt,.nbib,.ris,.xml,.bib,.csv,text/plain,application/xml,text/xml,text/csv" hidden></label>
     <span class="note">PubMed (Save → Format: PubMed), RIS, BibTeX, CSV o XML. Cuento los resultados y cargo los artículos. Con un link de PubMed no hace falta archivo: toca «Traer artículos de PubMed».</span>
     <button type="button" class="btn ghost" id="pm-btn" hidden>Traer artículos de PubMed</button>
+    <button type="button" class="btn ghost" id="cit-btn">🔁 Rastreo de citas de los estudios incluidos</button>
     <details id="feed-box"><summary class="note">Traer desde un hilo de sindicación (RSS/Atom) o un XML en línea</summary>
       <div class="bar" style="margin-top:6px">
         <input class="grow" id="feed-url" type="url" inputmode="url" placeholder="Link del hilo RSS/Atom o del XML" autocomplete="off">
@@ -301,6 +302,7 @@ details.crit .abs{white-space:pre-wrap;font-size:.9rem;margin-bottom:6px}
   <div id="b-hist" class="hist" hidden></div>
   <div class="actions">
     <button type="button" class="btn danger left" id="b-del" hidden>Eliminar</button>
+    <button type="button" class="btn ghost" id="upd-btn" hidden>🔄 Actualizar esta búsqueda</button>
     <button type="button" class="btn ghost" data-close>Cerrar</button>
     <button class="btn" type="submit">Guardar</button>
   </div>
@@ -418,11 +420,11 @@ details.crit .abs{white-space:pre-wrap;font-size:.9rem;margin-bottom:6px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="config.js?v=12"></script>
-<script src="autocompletar.js?v=12"></script>
-<script src="importar.js?v=12"></script>
-<script src="prisma.js?v=12"></script>
-<script src="app.js?v=12"></script>
-<script src="estudios.js?v=12"></script>
+<script src="config.js?v=13"></script>
+<script src="autocompletar.js?v=13"></script>
+<script src="importar.js?v=13"></script>
+<script src="prisma.js?v=13"></script>
+<script src="app.js?v=13"></script>
+<script src="estudios.js?v=13"></script>
 </body>
 </html>

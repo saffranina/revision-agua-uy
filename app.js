@@ -268,7 +268,8 @@ function openB(id) {
   $("#b-campos").value = d.campos || ""; $("#b-notas").value = d.notas || ""; $("#b-del").hidden = !id || !clave || !rol.admin;
   const hist = id ? [{ fecha: d.creado, accion: "Registrada" }, ...(d.actualizado && d.actualizado !== d.creado ? [{ fecha: d.actualizado, accion: "Última edición" }] : [])] : [];
   $("#b-hist").innerHTML = histHtml(hist); $("#b-hist").hidden = !id;
-  $("#bl-url").value = ""; $("#imp-file").value = ""; $("#imp-res").hidden = true; importando = null;
+  $("#bl-url").value = ""; $("#imp-file").value = ""; $("#imp-res").hidden = true; importando = null; actualizando = null;
+  $("#upd-btn").hidden = !id || !clave || !rol.admin;
   $("#feed-url").value = ""; $("#feed-box").open = false;
   $("#b-link").value = d.link || ((String(d.notas || "").match(/Link de resultados: (\S+)/) || [])[1] || ""); mostrarPm();
   lock($("#form-b")); $("#dlg-b").showModal();
@@ -372,31 +373,70 @@ $("#imp-file").onchange = async e => {
 // Muestra el resumen de lo que se va a importar y lo deja listo para guardar
 function mostrarImportacion(origen, donde, leido, aviso) {
   const res = $("#imp-res"); res.hidden = false;
-  const refs = Importar.marcarDuplicados(leido.refs, R).map(r => {
+  let refs = Importar.marcarDuplicados(leido.refs, R).map(r => {
     const c = Autocompletar.chequeoUruguay(r);
     return { ...r, uruguay: textoUy(c), esUy: c.afUy || c.menciona };
   });
+  // Al actualizar una búsqueda solo interesa lo nuevo: lo que ya estaba registrado no se vuelve a cargar
+  let yaEstaban = 0;
+  if (actualizando) { const antes = refs.length; refs = refs.filter(r => !/^R\d+$/.test(r.duplicadoDe || "")); yaEstaban = antes - refs.length }
   const dups = refs.filter(r => r.duplicadoDe).length, uy = refs.filter(r => r.esUy).length;
   importando = { archivo: origen, refs };
   // Completa la búsqueda con lo que trae el archivo
-  if (!editB || !Number($("#b-n").value)) $("#b-n").value = leido.total ?? refs.length;
+  if (actualizando) $("#b-n").value = refs.length;
+  else if (!editB || !Number($("#b-n").value)) $("#b-n").value = leido.total ?? refs.length;
   if (leido.base && !editB) $("#b-base").value = leido.base;
   res.innerHTML = `<span><b>${refs.length}</b> artículos ${donde}.</span>
     ${aviso ? `<span class="uycheck warn">${esc(aviso)}</span>` : ""}
     <span>${refs.length - dups} nuevos · ${dups} duplicados${dups ? " (ya estaban en el registro o repetidos)" : ""}.</span>
+    ${actualizando ? `<span>🔄 ${yaEstaban} ya estaban registrados de la búsqueda anterior y no se vuelven a cargar.</span>` : ""}
     <span>🇺🇾 ${uy} con autores de Uruguay o que mencionan Uruguay.</span>
+    ${leido.soloUy ? `<label><input type="checkbox" id="imp-uy" checked> Cargar solo los ${uy} relacionados con Uruguay</label>` : ""}
     ${dups ? `<label><input type="checkbox" id="imp-dups" checked> Registrar los duplicados con estado «Duplicado» (cuentan en PRISMA)</label>` : ""}
     ${editB ? `<button type="button" class="btn" id="imp-go">Importar</button>` : `<span class="note" id="imp-go-nota"></span>`}`;
-  const chk = $("#imp-dups"), go = $("#imp-go"), nota = $("#imp-go-nota");
+  const chk = $("#imp-dups"), go = $("#imp-go"), nota = $("#imp-go-nota"), chkUy = $("#imp-uy");
   const etiqueta = () => {
-    const n = refs.length - (chk && !chk.checked ? dups : 0), t = `${n} artículo${n === 1 ? "" : "s"}`;
+    const n = refs.filter(r => (!chk || chk.checked || !r.duplicadoDe) && (!chkUy || !chkUy.checked || r.esUy)).length, t = `${n} artículo${n === 1 ? "" : "s"}`;
     if (go) go.textContent = "Importar " + t;
     if (nota) nota.textContent = `Al guardar la búsqueda se ${n === 1 ? "carga" : "cargan"} ${t} en Referencias.`;
   };
   if (chk) chk.onchange = etiqueta;
+  if (chkUy) chkUy.onchange = etiqueta;
   etiqueta();
   if (go) { if (!refs.length) go.hidden = true; go.onclick = () => importarAhora() }
 }
+// Rastreo de citas hacia atrás y hacia adelante de los estudios incluidos
+$("#cit-btn").onclick = async () => {
+  const inc = R.filter(r => r.estadoK === "inc");
+  if (!inc.length) { toast("Primero tiene que haber estudios incluidos."); return }
+  const btn = $("#cit-btn"); btn.disabled = true;
+  try {
+    const leido = await Importar.rastreoCitas(inc, t => btn.textContent = t);
+    leido.soloUy = true;
+    $("#b-base").value = "Otra"; $("#b-metodo").value = "otros";
+    $("#b-cadena").value = `Rastreo de citas hacia atrás (referencias citadas) y hacia adelante (artículos que los citan) de ${leido.estudios} estudios incluidos, con OpenAlex.`;
+    $("#b-campos").value = "No aplica"; $("#b-filtros").value = "Ninguno";
+    mostrarImportacion("Rastreo de citas (OpenAlex)", "encontrados en el rastreo de citas", leido,
+      leido.sinDoi ? `${leido.sinDoi} estudio${leido.sinDoi === 1 ? "" : "s"} incluido${leido.sinDoi === 1 ? "" : "s"} sin DOI no se pudieron rastrear: revisa sus referencias a mano.` : "");
+  } catch (e) { toast("No pude hacer el rastreo de citas: " + e.message, 7000) }
+  finally { btn.disabled = false; btn.textContent = "🔁 Rastreo de citas de los estudios incluidos" }
+};
+// Actualizar una búsqueda: la repite hoy y carga solo lo nuevo
+let actualizando = null;
+$("#upd-btn").onclick = () => {
+  const b = B.find(x => x.id === editB); if (!b) return;
+  $("#dlg-b").close(); openB(null);
+  actualizando = b.id;
+  $("#dlg-b-title").textContent = "Actualizar búsqueda";
+  $("#b-base").value = b.base; $("#b-metodo").value = Prisma.metodoDe(b);
+  $("#b-cadena").value = b.cadena || ""; $("#b-filtros").value = b.filtros || ""; $("#b-campos").value = b.campos || "";
+  $("#b-link").value = b.link || ""; mostrarPm();
+  $("#b-notas").value = `Actualización de la búsqueda del ${fdate(b.fecha)} (${b.id}). Solo se cargan los registros nuevos.`;
+  if (!$("#pm-btn").hidden) $("#pm-btn").click();
+  else if ($("#feed-url").value) $("#feed-btn").click();
+  else toast("Repite la búsqueda en la base y adjunta el archivo de resultados: solo se cargarán los artículos nuevos.", 7000);
+};
+
 // PubMed deja pedir los resultados de una búsqueda: los traemos con el link
 $("#pm-btn").onclick = async () => {
   const btn = $("#pm-btn"); btn.disabled = true;
@@ -445,9 +485,10 @@ $("#bl-url").addEventListener("keydown", e => { if (e.key === "Enter") { e.preve
 // Carga los artículos del archivo en la búsqueda indicada (de a 50 por pedido)
 async function importarA(busqueda, progreso) {
   const conDups = !$("#imp-dups") || $("#imp-dups").checked;
-  const lista = importando.refs.filter(r => conDups || !r.duplicadoDe).map(r => ({
+  const soloUy = $("#imp-uy") && $("#imp-uy").checked;
+  const lista = importando.refs.filter(r => (conDups || !r.duplicadoDe) && (!soloUy || r.esUy)).map(r => ({
     titulo: r.titulo, autores: r.autores, anio: r.anio, revista: r.revista, doi: r.doi, link: r.link, resumen: r.resumen,
-    uruguay: r.uruguay, estado: r.duplicadoDe ? "dup" : "pend", notas: r.duplicadoDe ? "Duplicado de " + r.duplicadoDe : "",
+    uruguay: r.uruguay, estado: r.duplicadoDe ? "dup" : "pend", notas: [r.duplicadoDe ? "Duplicado de " + r.duplicadoDe : "", r.notas || ""].filter(Boolean).join(" · "),
   }));
   let hechos = 0;
   try {

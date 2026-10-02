@@ -386,5 +386,45 @@
     return { refs, base: "PubMed/MEDLINE", total, aviso: avisos.join(" ") };
   }
 
-  window.Importar = { leer, marcarDuplicados, leerLink, traerPubmed, traerHilo, linkHiloColibri, claveDoi, claveTitulo };
+  /* ---------- Rastreo de citas (bola de nieve) con OpenAlex ---------- */
+  const SEL = "id,doi,display_name,publication_year,authorships,primary_location,abstract_inverted_index";
+  function deOpenAlex(w, direccion, desde) {
+    const inv = w.abstract_inverted_index, pal = [];
+    if (inv) Object.entries(inv).forEach(([p, pos]) => pos.forEach(i => { pal[i] = p }));
+    const paises = new Set();
+    (w.authorships || []).forEach(a => { (a.countries || []).forEach(c => paises.add(c)); (a.institutions || []).forEach(i => i.country_code && paises.add(i.country_code)) });
+    const doi = w.doi ? w.doi.replace(/^https?:\/\/doi\.org\//i, "") : "";
+    return {
+      titulo: sinPunto(w.display_name || ""), anio: w.publication_year ? String(w.publication_year) : "",
+      autores: (w.authorships || []).map(a => a.author && a.author.display_name).filter(Boolean).map(n => { const p = n.split(" "); return p.length > 1 ? p[p.length - 1] + " " + p.slice(0, -1).map(x => x[0]).join("") : n }).join(", "),
+      revista: (w.primary_location && w.primary_location.source && w.primary_location.source.display_name) || "",
+      doi, link: (w.primary_location && w.primary_location.landing_page_url) || (doi ? "https://doi.org/" + doi : ""),
+      resumen: pal.join(" ").trim(), paises: [...paises], afiliaciones: "",
+      notas: `Rastreo de citas: ${direccion} ${desde}`, oaid: w.id,
+    };
+  }
+  async function oa(url) { const r = await fetch(url); if (!r.ok) throw new Error("OpenAlex respondió " + r.status); return r.json() }
+  async function rastreoCitas(incluidos, progreso) {
+    const conDoi = incluidos.filter(r => r.doi);
+    if (!conDoi.length) throw new Error("ninguno de los estudios incluidos tiene DOI cargado");
+    const vistos = new Map(), base = "https://api.openalex.org/works";
+    let hechos = 0;
+    for (const r of conDoi) {
+      progreso(`Estudio ${++hechos} de ${conDoi.length}…`);
+      let w;
+      try { w = await oa(`${base}/doi:${encodeURIComponent(r.doi)}?select=id,referenced_works`) } catch (e) { continue }
+      const refs = w.referenced_works || [];
+      for (let i = 0; i < refs.length; i += 50) {
+        const ids = refs.slice(i, i + 50).map(u => u.split("/").pop()).join("|");
+        const j = await oa(`${base}?filter=openalex_id:${ids}&per-page=50&select=${SEL}`);
+        (j.results || []).forEach(x => { if (!vistos.has(x.id)) vistos.set(x.id, deOpenAlex(x, "referencia de", r.codigo)) });
+      }
+      const id = w.id.split("/").pop();
+      const c = await oa(`${base}?filter=cites:${id}&per-page=200&select=${SEL}`);
+      (c.results || []).forEach(x => { if (!vistos.has(x.id)) vistos.set(x.id, deOpenAlex(x, "cita a", r.codigo)) });
+    }
+    return { refs: [...vistos.values()].filter(x => x.titulo), base: "Otra", sinDoi: incluidos.length - conDoi.length, estudios: conDoi.length };
+  }
+
+  window.Importar = { rastreoCitas, leer, marcarDuplicados, leerLink, traerPubmed, traerHilo, linkHiloColibri, claveDoi, claveTitulo };
 })();

@@ -91,6 +91,16 @@ Después de editar `Codigo.gs`: **Implementar → Administrar implementaciones �
 
 ## Uso diario
 
+Pestañas: **Protocolo · Búsquedas · Referencias · Estudios · PRISMA · Exportar**.
+
+- **Protocolo**: pregunta PECO, criterios de inclusión y exclusión, diseños elegibles, PROSPERO, herramienta de riesgo de sesgo y palabras para resaltar. Los criterios se ven mientras se criba.
+- **Método de cada búsqueda**: «Bases de datos y registros» u «Otros métodos» (repositorios, sitios web, búsqueda manual, rastreo de citas). Define en qué columna del diagrama PRISMA cuenta.
+- **Cribado**: *Pasa*, *Quizás* (pasa a texto completo y queda registrado), *Excluir*, *Duplicado*; en texto completo, *Incluir*, *Excluir* o *No se consiguió* (texto completo no recuperado, como pide PRISMA). Las palabras del protocolo se resaltan en verde (a favor) y rojo (en contra).
+- **Estudios**: para cada incluido, extracción de datos con formulario estándar (la verifica otra persona) y riesgo de sesgo con ROBINS-E (7 dominios y juicio global). Semáforo de riesgo de sesgo, tabla de características y mapa esquemático de Uruguay por departamento.
+- **PRISMA**: diagrama de flujo PRISMA 2020 oficial (dos columnas) descargable en PNG o SVG, kappa por fase, texto de métodos y resultados listo para copiar, y tabla de estrategias de búsqueda (PRISMA-S) para el anexo en Word o CSV.
+- **Rastreo de citas**: en una nueva búsqueda, «🔁 Rastreo de citas de los estudios incluidos» trae con OpenAlex las referencias de cada incluido y los artículos que lo citan, con el chequeo de Uruguay (por defecto carga solo los relacionados con Uruguay).
+- **Actualizar una búsqueda**: abre una búsqueda y toca «🔄 Actualizar esta búsqueda». La repite hoy (PubMed y Colibri solos; las demás adjuntando el archivo) y carga solo los artículos nuevos.
+
 - **Búsquedas**: base, fecha, cadena exacta, filtros y número de resultados.
 - **Hilos RSS/Atom**: en una búsqueda, «Traer desde un hilo de sindicación» acepta el link de un hilo RSS/Atom o de un XML en línea (lo baja el motor). Con un link de búsqueda de Colibri arma solo el hilo de resultados. También se puede adjuntar el hilo guardado como archivo.
 - **Cribar**: en Referencias toca «▶ Cribar». Muestra un artículo por vez con título, autores, resumen y el chequeo de Uruguay. Fase 1 (título y resumen): *Pasa*, *Excluir* (con motivo) o *Duplicado*. Fase 2 (texto completo): *Incluir* o *Excluir*. Cada decisión se guarda sola con su fecha; *Deshacer* vuelve atrás. En la compu: teclas S, N, D, → y ←.
