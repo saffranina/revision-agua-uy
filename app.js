@@ -124,10 +124,13 @@ async function actualizarRol() {
     store.set("rol", JSON.stringify(rol)); setModo(); contarConflictos();
   } catch (e) { if (e.message === "Clave incorrecta.") { clave = ""; store.set("clave", null); store.set("rol", null); setModo() } }
 }
-$("#mode").onclick = () => { $("#k-clave").value = ""; $("#k-salir").hidden = !clave; $("#dlg-k").showModal() };
+$("#mode").onclick = () => { $("#k-clave").value = ""; $("#k-clave").type = "password"; $("#k-error").hidden = true; $("#k-salir").hidden = !clave; $("#dlg-k").showModal() };
+$("#k-ver").onclick = () => { const i = $("#k-clave"); i.type = i.type === "password" ? "text" : "password"; i.focus() };
+$("#k-clave").addEventListener("input", () => $("#k-error").hidden = true);
 $("#form-k").onsubmit = async e => {
   e.preventDefault();
-  const k = $("#k-clave").value; const prev = clave; clave = k;
+  const k = $("#k-clave").value.trim(); const prev = clave; clave = k;
+  const btn = e.submitter || $("#form-k").querySelector('[type="submit"]'); btn.disabled = true; btn.textContent = "Probando…"; $("#k-error").hidden = true;
   try {
     const j = await api("probarClave", {});
     rol = j.rol || { admin: true, revisor: "" };
@@ -135,7 +138,15 @@ $("#form-k").onsubmit = async e => {
     toast("Entraste como " + [rol.revisor, rol.admin ? "administración" : ""].filter(Boolean).join(" y ")); contarConflictos();
     if (typeof cargarComentarios === "function") cargarComentarios();
   }
-  catch (err) { clave = prev; toast(err.message === "Clave incorrecta." ? "Clave incorrecta." : err.message, 9000) }
+  catch (err) {
+    clave = prev; const box = $("#k-error");
+    // El aviso va dentro de la ventana: el toast queda detrás del diálogo
+    box.innerHTML = err.message === "Clave incorrecta."
+      ? `<b>Clave incorrecta.</b> Revisa:<ul><li>Mayúsculas y minúsculas (toca 👁 para ver lo que escribiste).</li><li>Que sea exactamente la que está entre comillas en <code>CLAVE</code> o en <code>REVISORES</code> del código.</li><li>Si cambiaste la clave en el código: guardar 💾 y <b>Implementar → Administrar implementaciones → ✏️ → Nueva versión</b>. Sin la versión nueva, sigue valiendo la clave anterior.</li></ul>`
+      : "No pude entrar: " + err.message.replace(/[<>&]/g, "");
+    box.hidden = false;
+  }
+  finally { btn.disabled = false; btn.textContent = "Entrar" }
   setModo();
 };
 $("#k-salir").onclick = () => { clave = ""; store.set("clave", null); store.set("rol", null); setModo(); $("#dlg-k").close(); toast("Ahora estás en solo lectura") };

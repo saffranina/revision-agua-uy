@@ -248,6 +248,9 @@ svg.graf{width:100%;height:auto;display:block}
 .graf .grid{stroke:var(--line);stroke-width:1} .graf .base{stroke:var(--muted);stroke-width:1}
 .graf .eje{font:600 11px var(--f-body);fill:var(--muted)} .graf .val{font:800 11px var(--f-body);fill:var(--ink)}
 .graf .bar{fill:var(--accent)} .graf .hit{fill:transparent} .graf .barra:hover .bar{fill:var(--lav)}
+.k-fila{display:flex;gap:8px;align-items:center} .k-fila input{flex:1;min-width:0} .k-fila .btn{padding:8px 12px}
+.k-error{background:color-mix(in srgb, var(--bad) 12%, var(--surface));border:2px solid color-mix(in srgb, var(--bad) 55%, var(--surface));color:var(--ink);border-radius:12px;padding:8px 12px;margin-top:10px;line-height:1.45;font-size:.92rem}
+.k-error ul{margin:6px 0 0;padding-left:20px}
 details.cadenas{background:var(--surface);border:2px solid var(--lav);border-radius:16px;padding:8px 12px}
 details.cadenas>summary{cursor:pointer;font-weight:800;color:var(--accent)}
 .cad-grupo{font-family:var(--f-display);font-weight:600;font-size:1rem;margin:14px 0 6px;color:var(--ink)}
@@ -427,7 +430,8 @@ table.chk input{min-width:70px}
 <dialog id="dlg-k"><form id="form-k">
   <h2>Modo edición</h2>
   <p class="note">Escribe la clave que pusiste en el código de la planilla. Queda guardada en este dispositivo.</p>
-  <label>Clave<input id="k-clave" type="password" autocomplete="current-password" required></label>
+  <label>Clave<span class="k-fila"><input id="k-clave" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" required><button type="button" class="btn ghost" id="k-ver" aria-label="Mostrar la clave">👁</button></span></label>
+  <div class="k-error" id="k-error" role="alert" hidden></div>
   <div class="actions">
     <button type="button" class="btn danger left" id="k-salir" hidden>Salir del modo edición</button>
     <button type="button" class="btn ghost" data-close>Cancelar</button>
@@ -617,15 +621,15 @@ table.chk input{min-width:70px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="config.js?v=21"></script>
-<script src="autocompletar.js?v=21"></script>
-<script src="importar.js?v=21"></script>
-<script src="prisma.js?v=21"></script>
+<script src="config.js?v=22"></script>
+<script src="autocompletar.js?v=22"></script>
+<script src="importar.js?v=22"></script>
+<script src="prisma.js?v=22"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
-<script src="prioridad.js?v=21"></script>
-<script src="app.js?v=21"></script>
-<script src="estudios.js?v=21"></script>
-<script src="extras.js?v=21"></script>
-<script src="cadenas.js?v=21"></script>
+<script src="prioridad.js?v=22"></script>
+<script src="app.js?v=22"></script>
+<script src="estudios.js?v=22"></script>
+<script src="extras.js?v=22"></script>
+<script src="cadenas.js?v=22"></script>
 </body>
 </html>
