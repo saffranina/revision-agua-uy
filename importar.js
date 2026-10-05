@@ -9,7 +9,10 @@
     const t = texto.slice(0, 5000);
     if (/<PubmedArticle[\s>]/.test(t) || /<PubmedArticleSet/.test(t)) return "xml";
     if (/<rss[\s>]|<feed[\s>][^>]*Atom|<feed\s+xmlns="http:\/\/www\.w3\.org\/2005\/Atom"/i.test(t) || (/<feed[\s>]/.test(t) && /<entry[\s>]/.test(texto))) return "feed";
+    // XML de la BVS/LILACS (formato Solr: <doc><arr name="ti">…) u otro XML con campos ti/au/ab
+    if (/^\s*</.test(t) && /<doc[\s>]/.test(texto) && /name="(ti|ti_[a-z]{2}|au|ab)"/.test(texto)) return "bvs";
     if (/^\s*</.test(t) && /(dc:title|<dim:|element="title"|<title[\s>])/.test(t)) return "dc";
+    if (/^\s*</.test(t)) return "bvs";
     if (/^PMID- /m.test(t)) return "pubmed";
     if (/^TY  - /m.test(t)) return "ris";
     if (/^\s*@\w+\s*\{/m.test(t)) return "bibtex";
@@ -46,6 +49,54 @@
   }
 
   // XML con Dublin Core (repositorios como Colibri/DSpace, OAI-PMH)
+  // XML de la BVS (pesquisa.bvsalud.org → Exportar → XML) y, en general, cualquier XML con un registro por artículo
+  function bvs(texto) {
+    const doc = new DOMParser().parseFromString(texto, "text/xml");
+    if (doc.getElementsByTagName("parsererror").length) throw new Error("formato");
+    const todos = Array.from(doc.getElementsByTagName("*"));
+    const nombre = e => (e.getAttribute("name") || e.localName || "").toLowerCase();
+    const CAMPOS = {
+      titulo: ["ti", "ti_es", "ti_en", "ti_pt", "title", "titulo", "article_title"],
+      autores: ["au", "author", "authors", "autor", "autores", "creator"],
+      resumen: ["ab", "ab_es", "ab_en", "ab_pt", "abstract", "resumen", "description"],
+      anio: ["da", "year", "year_cluster", "py", "dp", "date", "publication_year", "ano", "anio"],
+      revista: ["ta", "journal", "fo", "source", "revista", "jt"],
+      doi: ["doi"],
+      link: ["ur", "url", "link", "fulltext"],
+      db: ["db"],
+      id: ["id"],
+    };
+    const esCampo = (e, lista) => lista.includes(nombre(e));
+    // Un registro: <doc> (Solr) o, si no hay, el padre de cada título
+    let registros = todos.filter(e => e.localName === "doc");
+    if (!registros.length) registros = [...new Set(todos.filter(e => esCampo(e, CAMPOS.titulo)).map(e => e.parentNode))];
+    const valores = (r, lista) => {
+      const out = [];
+      Array.from(r.children).filter(h => esCampo(h, lista)).sort((a, b) => lista.indexOf(nombre(a)) - lista.indexOf(nombre(b))).forEach(h => {
+        const hijos = Array.from(h.children);
+        (hijos.length ? hijos : [h]).forEach(x => { const v = limpio(x.textContent); if (v) out.push(v) });
+      });
+      return out;
+    };
+    const refs = registros.map(r => {
+      const doiTxt = valores(r, CAMPOS.doi).concat(valores(r, CAMPOS.link)).join(" ");
+      const doi = (doiTxt.match(/10\.\d{4,9}\/[^\s"<>]+/) || [""])[0];
+      const id = valores(r, CAMPOS.id)[0] || "";
+      const link = valores(r, CAMPOS.link).find(u => /^https?:\/\//.test(u)) || (doi ? "https://doi.org/" + doi : id ? "https://pesquisa.bvsalud.org/portal/resource/es/" + encodeURIComponent(id) : "");
+      return {
+        titulo: sinPunto(valores(r, CAMPOS.titulo)[0]),
+        autores: [...new Set(valores(r, CAMPOS.autores))].join("; "),
+        anio: (valores(r, CAMPOS.anio).join(" ").match(/(?:^|\D)((?:19|20)\d{2})/) || ["", ""])[1],
+        revista: valores(r, CAMPOS.revista)[0] || "",
+        doi, link, resumen: valores(r, CAMPOS.resumen)[0] || "",
+        db: valores(r, CAMPOS.db).join(" "), afiliaciones: "",
+      };
+    });
+    const nf = (texto.match(/numFound="(\d+)"/) || [])[1];
+    refs.total = nf ? Number(nf) : undefined;
+    return refs;
+  }
+
   function dc(texto) {
     const doc = new DOMParser().parseFromString(texto, "text/xml");
     const todos = Array.from(doc.getElementsByTagName("*"));
@@ -321,9 +372,10 @@
   function leer(texto) {
     const formato = detectar(texto);
     if (!formato) throw new Error("formato");
-    const lector = { ris, pubmed, xml, dc, feed, bibtex, csv }[formato];
-    const refs = lector(texto).filter(r => r.titulo);
-    return { formato, refs, base: baseDeArchivo(formato, refs) };
+    const lector = { ris, pubmed, xml, dc, feed, bibtex, csv, bvs }[formato];
+    const todos = lector(texto), refs = todos.filter(r => r.titulo);
+    if (formato === "bvs" && !refs.length) throw new Error("formato");
+    return { formato, refs, base: baseDeArchivo(formato, refs) || (formato === "bvs" && /bvsalud|lilacs/i.test(texto) ? "LILACS" : ""), total: todos.total };
   }
 
   // Marca como duplicado lo que ya está en el registro o se repite dentro del archivo
