@@ -763,7 +763,7 @@ $("#c-mias").onclick = () => {
   const btnRev = r => `<button type="button" class="btn ghost" data-rev="${esc(r.codigo)}" style="padding:2px 10px">Revisar</button>`;
   $("#c-btns").hidden = true; $("#c-excl").hidden = true;
   $("#c-card").innerHTML = `<h3>🤔 Mis «Quizás» (${quizas.length})</h3>
-    <p class="note">${doble ? "Tu decisión queda como Quizás (cuenta como «pasa»). Mientras el artículo siga en Fase 1 la puedes cambiar; cuando las dos decidieron, pasa a texto completo y ahí se resuelve." : "Pasaron a Fase 2 (texto completo) con la nota «Quizás»: ahí se decide si se incluyen."}</p>
+    <p class="note">${doble ? "Quizás no incluye nada: igual que «Pasa», manda el artículo a la Fase 2 (texto completo), donde se decide si se incluye o se excluye. Queda registrado como Quizás. Mientras siga en Fase 1 puedes cambiar tu decisión." : "Pasaron a la Fase 2 (texto completo) con la nota «Quizás»: ahí se decide si se incluyen o se excluyen."}</p>
     ${quizas.length ? `<ul class="mias">${quizas.map(r => item(r, doble && r.estadoK === "pend" ? btnRev(r) : `<a href="#" data-ficha="${esc(r.codigo)}">Ver ficha</a>`)).join("")}</ul>` : '<p class="meta">No marcaste ninguno como Quizás.</p>'}
     <h3>⏭ Saltados (${salt.length})</h3>
     <p class="note">Siguen pendientes: no se decidió nada. Se recuerdan en este dispositivo y vuelven al final de la cola.</p>
