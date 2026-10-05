@@ -414,6 +414,7 @@ function mostrarImportacion(origen, donde, leido, aviso) {
   if (leido.cadena && !$("#b-cadena").value.trim()) $("#b-cadena").value = leido.cadena;
   if (leido.filtros && !$("#b-filtros").value.trim()) $("#b-filtros").value = leido.filtros;
   // La BVS exporta por defecto solo la página que se está viendo (20)
+  if (leido.sinTitulo) aviso = [aviso, `${leido.sinTitulo} registro${leido.sinTitulo === 1 ? "" : "s"} del archivo no ${leido.sinTitulo === 1 ? "tiene" : "tienen"} título y no se ${leido.sinTitulo === 1 ? "carga" : "cargan"}: búscalo${leido.sinTitulo === 1 ? "" : "s"} en la base y agrégalo${leido.sinTitulo === 1 ? "" : "s"} a mano.`].filter(Boolean).join(" ");
   if (leido.formato === "bvs" && leido.total > leido.refs.length) aviso = [aviso, `El archivo tiene ${leido.refs.length} de los ${leido.total} resultados de la búsqueda. En la BVS, al exportar, elige exportar todos los resultados (no solo esta página) y vuelve a adjuntarlo.`].filter(Boolean).join(" ");
   res.innerHTML = `<span><b>${refs.length}</b> artículos ${donde}.</span>
     ${aviso ? `<span class="uycheck warn">${esc(aviso)}</span>` : ""}

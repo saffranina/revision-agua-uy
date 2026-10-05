@@ -32,12 +32,14 @@
       if (tag === "ER") { out.push(r); r = null; return }
       (r[tag] = r[tag] || []).push(val.trim()); ultima = tag;
     });
+    // Algunas bases no cierran el último registro con «ER  -»
+    if (r && Object.keys(r).length) out.push(r);
     return out.map(x => {
       const f = (...tags) => { for (const t of tags) if (x[t] && x[t][0]) return x[t][0]; return "" };
       const doi = f("DO").replace(/^https?:\/\/(dx\.)?doi\.org\//i, "");
       const anio = (f("PY", "Y1", "DA").match(/\d{4}/) || [""])[0];
       return {
-        titulo: sinPunto(f("TI", "T1", "CT")),
+        titulo: sinPunto(f("TI", "T1", "CT", "BT", "ST", "TT")),
         autores: (x.AU || x.A1 || []).map(limpio).join("; "),
         anio, revista: limpio(f("JO", "JF", "T2", "JA", "J2")), doi,
         link: f("UR", "L2") || (doi ? "https://doi.org/" + doi : ""),
@@ -383,8 +385,9 @@
     if (!formato) throw new Error("formato");
     const lector = { ris, pubmed, xml, dc, feed, bibtex, csv, bvs }[formato];
     const todos = lector(texto), refs = todos.filter(r => r.titulo);
+    const sinTitulo = todos.length - refs.length;
     if (formato === "bvs" && !refs.length) throw new Error("formato");
-    return { formato, refs, base: baseDeArchivo(formato, refs) || (formato === "bvs" && /bvsalud|lilacs/i.test(texto) ? "LILACS" : ""), total: todos.total, cadena: todos.cadena, filtros: todos.filtros };
+    return { formato, refs, base: baseDeArchivo(formato, refs) || (formato === "bvs" && /bvsalud|lilacs/i.test(texto) ? "LILACS" : ""), total: todos.total, cadena: todos.cadena, filtros: todos.filtros, sinTitulo };
   }
 
   // Marca como duplicado lo que ya está en el registro o se repite dentro del archivo
