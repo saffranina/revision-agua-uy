@@ -1,7 +1,7 @@
 // Registro de la revisión sistemática. Los datos viven en Google Sheets;
 // esta página los lee (cualquiera) y los edita (solo con la clave).
 const BASES = ["PubMed/MEDLINE", "LILACS", "SciELO", "BVS (Biblioteca Virtual en Salud)", "Scopus", "Web of Science", "Embase",
-  "Cochrane Library", "Google Scholar", "Colibri (UdelaR)", "Timbó", "Literatura gris / informes (OSE, MSP, URSEA)", "Otra"];
+  "Cochrane Library", "Europe PMC", "OpenAlex", "Google Scholar", "Colibri (UdelaR)", "Timbó", "Literatura gris / informes (OSE, MSP, URSEA)", "Otra"];
 const ESTADOS = [
   ["pend", "Pendiente de cribado"], ["dup", "Duplicado"], ["exta", "Excluida por título/resumen"],
   ["ft", "A texto completo"], ["nr", "Texto completo no recuperado"], ["extc", "Excluida a texto completo"], ["inc", "Incluida"]];

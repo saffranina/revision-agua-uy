@@ -113,6 +113,7 @@ Pestañas: **Inicio · Protocolo · Búsquedas · Referencias · Estudios · PRI
 - **Actualizar una búsqueda**: abre una búsqueda y toca «🔄 Actualizar esta búsqueda». La repite hoy (PubMed y Colibri solos; las demás adjuntando el archivo) y carga solo los artículos nuevos.
 
 - **Búsquedas**: base, fecha, cadena exacta, filtros y número de resultados.
+- **Buscar (beta)**: corre las cadenas del protocolo en PubMed, LILACS, Europe PMC, OpenAlex y Colibri, muestra cuántos resultados hay en cada una y con «Registrar» la guarda como búsqueda y carga sus artículos (duplicados marcados). Scopus, Web of Science y Google Scholar no tienen acceso abierto para programas: se buscan en su web.
 - **🔍 Cadenas de búsqueda** (desplegable en Búsquedas): las cadenas del protocolo para cada base (PubMed con MeSH, BVS/LILACS con DeCS, SciELO, Scopus, Web of Science, Google Scholar), principales y secundarias, con «📋 Copiar» y «🔎 Abrir en…».
 - **Hilos RSS/Atom**: en una búsqueda, «Traer desde un hilo de sindicación» acepta el link de un hilo RSS/Atom o de un XML en línea (lo baja el motor). Con un link de búsqueda de Colibri arma solo el hilo de resultados. También se puede adjuntar el hilo guardado como archivo.
 - **Cribar**: en Referencias toca «▶ Cribar». Muestra un artículo por vez con título, autores, resumen y el chequeo de Uruguay. Fase 1 (título y resumen): *Pasa*, *Excluir* (con motivo) o *Duplicado*. Fase 2 (texto completo): *Incluir* o *Excluir*. Cada decisión se guarda sola con su fecha; *Deshacer* vuelve atrás. En la compu: teclas S, N, D, → y ←.

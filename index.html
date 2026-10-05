@@ -252,6 +252,12 @@ svg.graf{width:100%;height:auto;display:block}
 .k-error{background:color-mix(in srgb, var(--bad) 12%, var(--surface));border:2px solid color-mix(in srgb, var(--bad) 55%, var(--surface));color:var(--ink);border-radius:12px;padding:8px 12px;margin-top:10px;line-height:1.45;font-size:.92rem}
 .k-error ul{margin:6px 0 0;padding-left:20px}
 .metodo-auto{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.9rem;color:var(--muted)} .metodo-auto>span{flex:1 1 220px} .metodo-auto .btn{padding:5px 12px;font-size:.85rem} .metodo-auto label{flex-basis:100%}
+.auto-lista{display:grid;gap:10px;margin:12px 0}
+.auto-base{background:var(--surface);border:2px solid var(--line);border-radius:16px;padding:10px 12px}
+.auto-base p.note{margin:2px 0 6px}
+.auto-base label{display:flex;gap:8px;align-items:center} .auto-base label input{width:auto;margin:0}
+.auto-estado{display:grid;gap:6px} .auto-num{font-size:.95rem}
+nav.tabs small{font-size:.65em;font-weight:700;text-transform:uppercase;letter-spacing:.04em;opacity:.7}
 details.cadenas{background:var(--surface);border:2px solid var(--lav);border-radius:16px;padding:8px 12px}
 details.cadenas>summary{cursor:pointer;font-weight:800;color:var(--accent)}
 .cad-grupo{font-family:var(--f-display);font-weight:600;font-size:1rem;margin:14px 0 6px;color:var(--ink)}
@@ -294,6 +300,7 @@ table.chk input{min-width:70px}
     <button role="tab" data-tab="inicio" aria-selected="true">Inicio</button>
     <button role="tab" data-tab="protocolo" aria-selected="false">Protocolo</button>
     <button role="tab" data-tab="busquedas" aria-selected="false">Búsquedas</button>
+    <button role="tab" data-tab="auto" aria-selected="false">Buscar <small>beta</small></button>
     <button role="tab" data-tab="referencias" aria-selected="false">Referencias</button>
     <button role="tab" data-tab="estudios" aria-selected="false">Estudios</button>
     <button role="tab" data-tab="prisma" aria-selected="false">PRISMA</button>
@@ -352,6 +359,19 @@ table.chk input{min-width:70px}
     </details>
     <div class="bar"><h2 class="grow">Búsquedas realizadas</h2><button class="btn edit-only" id="add-b">+ Nueva búsqueda</button></div>
     <div class="list" id="list-b"><div class="empty">Cargando búsquedas…</div></div>
+  </section>
+
+  <section class="view" id="v-auto" hidden>
+    <details class="ayuda"><summary>📖 ¿Qué es esto?</summary><div>Corre las cadenas del protocolo en las bases que dejan buscar desde otra página: <b>PubMed, LILACS, Europe PMC, OpenAlex y Colibri</b>. Muestra cuántos resultados hay en cada una y, con «Registrar», la guarda como búsqueda y carga sus artículos en Referencias, con la fecha, la cadena exacta y los duplicados marcados, igual que «+ Nueva búsqueda». <b>Scopus, Web of Science y Google Scholar no lo permiten</b>: esas hay que hacerlas en su web (las cadenas están en Búsquedas). Es una función en prueba: compara los números con los de la web de cada base antes de registrar.</div></details>
+    <div class="bar"><h2 class="grow">Búsqueda automática <small class="note">beta</small></h2></div>
+    <label>¿Qué buscar?<select id="auto-grupo">
+      <option value="principal">Interés principal: cianobacterias y agrotóxicos</option>
+      <option value="secundario">Interés secundario: trihalometanos, sodio y cloruros, nitratos, metales, microplásticos</option>
+    </select></label>
+    <div id="auto-bases" class="auto-lista"></div>
+    <div class="bar"><button type="button" class="btn" id="auto-go">🔎 Buscar en las bases marcadas</button>
+      <button type="button" class="btn ghost edit-only" id="auto-todas" hidden>Registrar todas</button></div>
+    <p class="note">Nada se guarda hasta que tocas «Registrar». Registra cada base por separado: PRISMA pide informar cada búsqueda con su fecha, su cadena y su número de resultados.</p>
   </section>
 
   <section class="view" id="v-referencias" hidden>
@@ -626,15 +646,16 @@ table.chk input{min-width:70px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="config.js?v=34"></script>
-<script src="autocompletar.js?v=34"></script>
-<script src="importar.js?v=34"></script>
-<script src="prisma.js?v=34"></script>
+<script src="config.js?v=36"></script>
+<script src="autocompletar.js?v=36"></script>
+<script src="importar.js?v=36"></script>
+<script src="prisma.js?v=36"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
-<script src="prioridad.js?v=34"></script>
-<script src="app.js?v=34"></script>
-<script src="estudios.js?v=34"></script>
-<script src="extras.js?v=34"></script>
-<script src="cadenas.js?v=34"></script>
+<script src="prioridad.js?v=36"></script>
+<script src="app.js?v=36"></script>
+<script src="estudios.js?v=36"></script>
+<script src="extras.js?v=36"></script>
+<script src="cadenas.js?v=36"></script>
+<script src="buscador.js?v=36"></script>
 </body>
 </html>

@@ -19,6 +19,29 @@
   const SEC_LIBRE = `(trihalomethane* OR "disinfection by-product*" OR chloroform OR sodium OR chloride* OR salinity OR "water crisis"
  OR nitrate* OR nitrite* OR methemoglobinemia OR arsenic OR "lead" OR "heavy metal*" OR microplastic*)`;
 
+  const EXP_PM = `("Cyanobacteria"[Mesh] OR "Microcystins"[Mesh] OR "Marine Toxins"[Mesh] OR "Harmful Algal Bloom"[Mesh]
+ OR cyanobacteri*[tiab] OR cyanotoxin*[tiab] OR microcystin*[tiab] OR saxitoxin*[tiab]
+ OR cylindrospermopsin*[tiab] OR anatoxin*[tiab] OR "algal bloom*"[tiab]
+ OR "Pesticides"[Mesh] OR "Herbicides"[Mesh] OR "Insecticides"[Mesh] OR "Agrochemicals"[Mesh]
+ OR pesticide*[tiab] OR herbicide*[tiab] OR agrochemical*[tiab] OR glyphosate[tiab]
+ OR atrazine[tiab] OR chlorpyrifos[tiab] OR "2,4-D"[tiab] OR endosulfan[tiab] OR imidacloprid[tiab]
+ OR plaguicida*[tiab] OR agrotoxico*[tiab] OR agroquimico*[tiab])`;
+  const SEC_PM = `("Trihalomethanes"[Mesh] OR "Disinfection"[Mesh] OR trihalomethane*[tiab] OR "disinfection by-product*"[tiab]
+ OR "disinfection byproduct*"[tiab] OR chloroform[tiab]
+ OR "Sodium"[Mesh] OR "Chlorides"[Mesh] OR sodium[tiab] OR chloride*[tiab] OR salinity[tiab] OR "water crisis"[tiab]
+ OR "Nitrates"[Mesh] OR nitrate*[tiab] OR nitrite*[tiab] OR "Methemoglobinemia"[Mesh]
+ OR "Metals, Heavy"[Mesh] OR "Arsenic"[Mesh] OR "Lead"[Mesh] OR arsenic[tiab] OR "lead"[tiab] OR "heavy metal*"[tiab]
+ OR "Microplastics"[Mesh] OR microplastic*[tiab])`;
+  const EXP_BVS = `(mh:Cianobacterias OR mh:Microcistinas OR mh:"Floraciones de Algas Nocivas"
+ OR tw:cianobacteria* OR tw:cianotoxina* OR tw:microcistina* OR tw:saxitoxina* OR tw:cyanobacteri*
+ OR mh:Plaguicidas OR mh:Herbicidas OR mh:Agroquímicos
+ OR tw:plaguicida* OR tw:agrotoxico* OR tw:agroquimico* OR tw:pesticida* OR tw:herbicida*
+ OR tw:glifosato OR tw:atrazina OR tw:clorpirifos OR tw:agrotóxico*)`;
+  const SEC_BVS = `(mh:Trihalometanos OR tw:trihalometano* OR tw:"subproductos de la desinfección" OR tw:sodio OR tw:cloruro*
+ OR tw:salinidad OR tw:"crisis hídrica" OR mh:Nitratos OR tw:nitrato* OR tw:metahemoglobinemia
+ OR mh:Arsénico OR mh:Plomo OR tw:arsénico OR tw:plomo OR tw:"metales pesados" OR tw:microplástico*)`;
+  const EXP_LIBRE = `(cyanobacteri* OR cyanotoxin* OR microcystin* OR saxitoxin* OR cylindrospermopsin*
+ OR "algal bloom*" OR pesticide* OR herbicide* OR agrochemical* OR glyphosate OR atrazine OR chlorpyrifos)`;
   const una = s => s.replace(/\s+/g, " ").trim();
   const pubmed = s => "https://pubmed.ncbi.nlm.nih.gov/?term=" + encodeURIComponent(una(s));
   const bvs = s => "https://pesquisa.bvsalud.org/portal/?lang=es&q=" + encodeURIComponent(una(s));
@@ -30,23 +53,13 @@
       { base: "PubMed / MEDLINE", abrir: pubmed, nota: "MeSH + palabras en título/resumen. [ad] busca en la afiliación de los autores. En la página: pega el link de resultados y usa «Traer artículos de PubMed».",
         cadena: `${AGUA_PM}
 AND
-("Cyanobacteria"[Mesh] OR "Microcystins"[Mesh] OR "Marine Toxins"[Mesh] OR "Harmful Algal Bloom"[Mesh]
- OR cyanobacteri*[tiab] OR cyanotoxin*[tiab] OR microcystin*[tiab] OR saxitoxin*[tiab]
- OR cylindrospermopsin*[tiab] OR anatoxin*[tiab] OR "algal bloom*"[tiab]
- OR "Pesticides"[Mesh] OR "Herbicides"[Mesh] OR "Insecticides"[Mesh] OR "Agrochemicals"[Mesh]
- OR pesticide*[tiab] OR herbicide*[tiab] OR agrochemical*[tiab] OR glyphosate[tiab]
- OR atrazine[tiab] OR chlorpyrifos[tiab] OR "2,4-D"[tiab] OR endosulfan[tiab] OR imidacloprid[tiab]
- OR plaguicida*[tiab] OR agrotoxico*[tiab] OR agroquimico*[tiab])
+${EXP_PM}
 AND
 ${URU_PM}` },
       { base: "BVS / LILACS", abrir: bvs, nota: "mh: son descriptores DeCS (el MeSH en español). Después filtra Base de datos: LILACS (anota también el total) y exporta en RIS.",
         cadena: `${AGUA_BVS}
 AND
-(mh:Cianobacterias OR mh:Microcistinas OR mh:"Floraciones de Algas Nocivas"
- OR tw:cianobacteria* OR tw:cianotoxina* OR tw:microcistina* OR tw:saxitoxina* OR tw:cyanobacteri*
- OR mh:Plaguicidas OR mh:Herbicidas OR mh:Agroquímicos
- OR tw:plaguicida* OR tw:agrotoxico* OR tw:agroquimico* OR tw:pesticida* OR tw:herbicida*
- OR tw:glifosato OR tw:atrazina OR tw:clorpirifos OR tw:agrotóxico*)
+${EXP_BVS}
 AND
 ${URU_BVS}` },
       { base: "SciELO", abrir: scielo, nota: "Todas las colecciones. Haz una segunda búsqueda en la colección SciELO Uruguay sin el último bloque. Exporta en RIS.",
@@ -56,8 +69,7 @@ AND (cianobacteria* OR cianotoxina* OR microcistina* OR cyanobacteri* OR plaguic
 AND (uruguay OR montevideo)` },
       { base: "Scopus (vía Timbó)", nota: "Entra por Timbó y pégala en Advanced search.",
         cadena: `TITLE-ABS-KEY${AGUA_LIBRE}
-AND TITLE-ABS-KEY(cyanobacteri* OR cyanotoxin* OR microcystin* OR saxitoxin* OR cylindrospermopsin*
- OR "algal bloom*" OR pesticide* OR herbicide* OR agrochemical* OR glyphosate OR atrazine OR chlorpyrifos)
+AND TITLE-ABS-KEY${EXP_LIBRE}
 AND (TITLE-ABS-KEY${URU_LIBRE} OR AFFILCOUNTRY(uruguay))` },
       { base: "Web of Science (vía Timbó)", nota: "Entra por Timbó y pégala en Advanced Search.",
         cadena: `TS=${AGUA_LIBRE}
@@ -73,20 +85,13 @@ AND (TS=${URU_LIBRE} OR CU=Uruguay)` },
       { base: "PubMed / MEDLINE", abrir: pubmed, nota: "Regístrala como búsqueda aparte y anota en notas «interés secundario».",
         cadena: `${AGUA_PM}
 AND
-("Trihalomethanes"[Mesh] OR "Disinfection"[Mesh] OR trihalomethane*[tiab] OR "disinfection by-product*"[tiab]
- OR "disinfection byproduct*"[tiab] OR chloroform[tiab]
- OR "Sodium"[Mesh] OR "Chlorides"[Mesh] OR sodium[tiab] OR chloride*[tiab] OR salinity[tiab] OR "water crisis"[tiab]
- OR "Nitrates"[Mesh] OR nitrate*[tiab] OR nitrite*[tiab] OR "Methemoglobinemia"[Mesh]
- OR "Metals, Heavy"[Mesh] OR "Arsenic"[Mesh] OR "Lead"[Mesh] OR arsenic[tiab] OR "lead"[tiab] OR "heavy metal*"[tiab]
- OR "Microplastics"[Mesh] OR microplastic*[tiab])
+${SEC_PM}
 AND
 ${URU_PM}` },
       { base: "BVS / LILACS", abrir: bvs, nota: "Filtra LILACS y exporta en RIS.",
         cadena: `${AGUA_BVS}
 AND
-(mh:Trihalometanos OR tw:trihalometano* OR tw:"subproductos de la desinfección" OR tw:sodio OR tw:cloruro*
- OR tw:salinidad OR tw:"crisis hídrica" OR mh:Nitratos OR tw:nitrato* OR tw:metahemoglobinemia
- OR mh:Arsénico OR mh:Plomo OR tw:arsénico OR tw:plomo OR tw:"metales pesados" OR tw:microplástico*)
+${SEC_BVS}
 AND
 ${URU_BVS}` },
       { base: "Scopus (vía Timbó)",
@@ -99,6 +104,13 @@ AND TS=${SEC_LIBRE}
 AND (TS=${URU_LIBRE} OR CU=Uruguay)` },
     ] },
   ];
+
+  // Bloques para la búsqueda automática (buscador.js)
+  window.Cadenas = {
+    pubmed: { principal: `${AGUA_PM}\nAND\n${EXP_PM}\nAND\n${URU_PM}`, secundario: `${AGUA_PM}\nAND\n${SEC_PM}\nAND\n${URU_PM}` },
+    bvs: { principal: `${AGUA_BVS}\nAND\n${EXP_BVS}\nAND\n${URU_BVS}`, secundario: `${AGUA_BVS}\nAND\n${SEC_BVS}\nAND\n${URU_BVS}` },
+    libre: { agua: AGUA_LIBRE, uruguay: URU_LIBRE, principal: EXP_LIBRE, secundario: SEC_LIBRE },
+  };
 
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const caja = document.getElementById("cadenas-box");
