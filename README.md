@@ -63,7 +63,7 @@ En la página toca **🔒 Solo lectura**, escribe tu clave y listo. Queda guarda
 
 ## Cribado doble ciego (Revisor 1, 2 y 3)
 
-**Modo de cribado** (pestaña Protocolo): «Una sola revisora» (por defecto, para la etapa de prueba: criba quien entra con la clave de administración y cada decisión vale enseguida) o «Doble ciego» (revisión formal, como se describe abajo).
+**Con la clave de administración el cribado es siempre directo**: cada decisión vale enseguida (Pasa o Quizás → Fase 2; Excluir → fuera). Sirve para la etapa de prueba con una sola persona. Con la clave de Revisor 1 o 2 es doble ciego.
 
 En `Codigo.gs`, además de `CLAVE` (administración), cada revisor tiene su clave:
 

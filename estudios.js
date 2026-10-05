@@ -4,7 +4,6 @@
 
 /* ---------- Protocolo ---------- */
 const CAMPOS_PROT = [
-  ["modoCribado", "Modo de cribado", "modo"],
   ["titulo", "Título de la revisión", 1],
   ["pregunta", "Pregunta de investigación", 3],
   ["poblacion", "P · Población", 2],
@@ -37,10 +36,6 @@ function renderProtocolo() {
   $("#prot-form").innerHTML = CAMPOS_PROT.map(([k, l, filas]) => {
     const v = PROT[k] ?? ({ palabrasIncluir: PAL_INCLUIR, palabrasSecundarias: PAL_SECUNDARIAS, palabrasExcluir: PAL_EXCLUIR }[k] || "");
     const ph = PROT_EJEMPLO[k] ? ` placeholder="Ejemplo: ${esc(PROT_EJEMPLO[k])}"` : "";
-    if (filas === "modo") return `<label>${esc(l)}<select id="p-${k}"${editable ? "" : " disabled"}>
-      <option value="directo"${v !== "doble" ? " selected" : ""}>Una sola revisora (prueba): cada decisión vale enseguida</option>
-      <option value="doble"${v === "doble" ? " selected" : ""}>Doble ciego (revisión formal): Revisor 1 y 2 criban por separado</option>
-    </select><span class="note">En «una sola revisora» criba quien entra con la clave de administración. Al pasar a doble ciego, Revisor 1 y 2 criban a ciegas y los desacuerdos van a Conflictos.</span></label>`;
     return `<label>${esc(l)}${filas > 1 ? `<textarea id="p-${k}" rows="${filas}"${ph}${editable ? "" : " disabled"}>${esc(v)}</textarea>` : `<input id="p-${k}" value="${esc(v)}"${ph}${editable ? "" : " disabled"}>`}</label>`;
   }).join("");
   $("#prot-acciones").hidden = !editable;
