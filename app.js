@@ -641,23 +641,31 @@ function colaFase() {
 }
 function renderCrib() {
   const fase = $("#c-fase").value, cola = colaFase();
-  const total = doble ? cola.length + cribSaltados.size : R.filter(r => r.estadoK === fase && (!$("#f-busq").value || r.busqueda === $("#f-busq").value)).length;
+  const saltFase = [...cribSaltados].filter(c => R.some(r => r.codigo === c && r.estadoK === fase)).length;
+  const total = doble ? cola.length + saltFase : R.filter(r => r.estadoK === fase && (!$("#f-busq").value || r.busqueda === $("#f-busq").value)).length;
   if (cribActual && cribActual.codigo === cribRevisar) cribActual = R.find(r => r.codigo === cribRevisar) || null;
   else if (!cribActual || cribActual.estadoK !== fase || cribSaltados.has(cribActual.codigo) || (doble && mias.has(claveDec(cribActual.codigo, faseNum())))) cribActual = cola[0] || null;
   else cribActual = R.find(r => r.codigo === cribActual.codigo) || cola[0] || null;
   $("#c-excl").hidden = true; $("#c-undo").hidden = !cribHist.length;
   const hechas = [...mias.keys()].filter(k => k.endsWith("|" + faseNum())).length;
   const otro = doble && otroAvance && otroAvance.revisor ? ` · ${otroAvance.revisor} lleva ${otroAvance["fase" + faseNum()]}` : "";
-  $("#c-prog").textContent = (total ? `Te quedan ${total}${cribSaltados.size ? ` (${cribSaltados.size} saltados)` : ""}` : "") + (doble ? ` · Llevas ${hechas}${otro}` : "");
+  $("#c-prog").textContent = (total ? `Te quedan ${total}${saltFase ? ` (${saltFase} saltado${saltFase === 1 ? "" : "s"})` : ""}` : "") + (doble ? ` · Llevas ${hechas}${otro}` : "");
   $("#c-quien").textContent = doble ? `Cribando como ${rol.revisor} · doble ciego: no ves las decisiones del otro revisor` : "Cribado directo (administración): cada decisión cambia el estado enseguida";
   $("#c-si").textContent = fase === "pend" ? "✓ Pasa" : "✓ Incluir";
   $("#c-dup").hidden = fase !== "pend"; $("#c-quiza").hidden = fase !== "pend"; $("#c-nr").hidden = fase === "pend";
+  // Cuántos hay en cada fase, a la vista en el selector
+  const nFase = f => R.filter(r => r.estadoK === f && (!$("#f-busq").value || r.busqueda === $("#f-busq").value)).length;
+  $("#c-fase").options[0].textContent = `Fase 1 · Título y resumen (${nFase("pend")})`;
+  $("#c-fase").options[1].textContent = `Fase 2 · Texto completo (${nFase("ft")})`;
+  // En doble ciego, lo que pasé yo espera a la otra revisora antes de llegar a la Fase 2
+  const esperando = doble ? [...mias.values()].filter(d => d.fase === "1" && (d.decision === "si" || d.decision === "quiza") && R.some(r => r.codigo === d.codigo && r.estadoK === "pend")).length : 0;
   const card = $("#c-card");
   if (!cribActual) {
     $("#c-btns").hidden = true;
-    card.innerHTML = `<div class="empty">${cribSaltados.size ? `No quedan más, salvo ${cribSaltados.size} que saltaste. <button type="button" class="btn ghost" id="c-reset">Volver a ver los saltados</button>`
+    card.innerHTML = `<div class="empty">${saltFase ? `No quedan más, salvo ${saltFase} que saltaste. <button type="button" class="btn ghost" id="c-reset">Volver a ver los saltados</button>`
       : doble ? `¡Terminaste esta fase! 🎉 Cuando ${otroAvance && otroAvance.revisor ? otroAvance.revisor : "el otro revisor"} también termine, los desacuerdos aparecen en «⚖️ Conflictos».`
-      : fase === "pend" ? "¡No quedan artículos pendientes de cribado! 🎉" : "No hay artículos esperando la lectura a texto completo."}</div>`;
+      : fase === "pend" ? "¡No quedan artículos pendientes de cribado! 🎉" : "No hay artículos esperando la lectura a texto completo."}
+      ${fase === "ft" && esperando ? `<p class="note">Pasaste ${esperando} artículo${esperando === 1 ? "" : "s"} en la Fase 1 que ${esperando === 1 ? "espera" : "esperan"} a que ${otroAvance && otroAvance.revisor ? otroAvance.revisor : "la otra revisora"} también decida. Llegan a la Fase 2 cuando las dos los pasaron (o se resolvió el conflicto).</p>` : ""}</div>`;
     const rs = $("#c-reset"); if (rs) rs.onclick = () => { cribSaltados.clear(); guardarSaltados(); renderCrib() };
     return;
   }
