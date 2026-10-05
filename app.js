@@ -204,12 +204,27 @@ function renderB() {
   el.querySelectorAll(".item a").forEach(a => a.onclick = e => e.stopPropagation());
   el.querySelectorAll(".item").forEach(i => { i.onclick = () => openB(i.dataset.id); i.onkeydown = e => { if (e.key === "Enter") openB(i.dataset.id) } });
 }
+// Etiquetas automáticas por contaminante, según título, resumen y notas (no se guardan: se calculan al mostrar)
+const TEMAS = [
+  ["ciano", "🦠 Cianobacterias", /cianobacteri|cyanobacteri|cianotoxin|cyanotoxin|microcist|microcyst|saxitoxin|cilindrospermopsin|cylindrospermopsin|anatoxin|floraci[oó]n|algal bloom/i],
+  ["agro", "🌾 Agrotóxicos", /agrot[oó]xic|plaguicid|pesticid|herbicid|insecticid|fungicid|agroqu[ií]mic|agrochemic|glifosat|glyphosat|\bAMPA\b|atrazin|clorpirif|chlorpyrif|2,4-D|endosulf|imidaclopr|organofosfor|organophosph/i],
+  ["thm", "🧪 Trihalometanos", /trihalomet|\bTHMs?\b|cloroformo|chloroform|subproductos? de (la )?desinfecci|disinfection by-?products?/i],
+  ["sodio", "🧂 Sodio y cloruros", /\bsodio\b|\bsodium\b|clorur|chloride|salinidad|salinity|crisis h[ií]drica|water crisis/i],
+  ["nitratos", "💧 Nitratos", /nitrat|nitrit|metahemoglobin|methemoglobin/i],
+  ["metales", "⚙️ Metales", /ars[eé]nic|\bplomo\b|\blead\b|plombemia|metales pesados|heavy metal|cadmio|cadmium|mercurio|mercury|cromo|chromium/i],
+  ["micro", "🔬 Microplásticos", /micropl[aá]stic|nanopl[aá]stic/i],
+];
+function temasDe(r) {
+  const t = [r.titulo, r.resumen, r.tema, r.notas].join(" ");
+  return TEMAS.filter(([, , re]) => re.test(t)).map(([k, l]) => ({ k, l }));
+}
 function renderR() {
   const el = $("#list-r");
-  const q = $("#f-text").value.trim().toLowerCase(), st = $("#f-estado").value, fb = $("#f-busq").value;
+  const q = $("#f-text").value.trim().toLowerCase(), st = $("#f-estado").value, fb = $("#f-busq").value, ft = $("#f-tema").value;
   const dupl = indiceDuplicados();
   const rows = R.filter(r => (st === "todos" || (!st ? r.estadoK !== "dup" : r.estadoK === st)) && (!fb || r.busqueda === fb) &&
-    (!q || [r.codigo, r.titulo, r.autores, r.doi, r.notas, r.tema, r.revista].join(" ").toLowerCase().includes(q)));
+    (!q || [r.codigo, r.titulo, r.autores, r.doi, r.notas, r.tema, r.revista].join(" ").toLowerCase().includes(q)) &&
+    (!ft || (ft === "ninguno" ? !temasDe(r).length : temasDe(r).some(x => x.k === ft))));
   if (!R.length) { el.innerHTML = `<div class="empty">Sin referencias todavía.${clave ? " Agrega cada artículo que salga de tus búsquedas y ve cambiando su estado a medida que lo revisas." : ""}</div>`; return }
   if (!rows.length) { el.innerHTML = `<div class="empty">Ninguna referencia coincide con el filtro.</div>`; return }
   el.innerHTML = rows.map(r => {
@@ -220,6 +235,7 @@ function renderR() {
     return `<div class="item" data-id="${esc(r.codigo)}" tabindex="0">
       <div class="top"><span class="t"><span class="meta">${esc(r.codigo)}</span> ${esc(r.titulo)}</span><span class="pill s-${r.estadoK}">${esc(r.estado)}</span></div>
       <div class="meta">${esc([r.autores, r.anio, r.revista].filter(Boolean).join(" · "))}</div>
+      ${temasDe(r).length ? `<div class="temas">${temasDe(r).map(x => `<span class="tema t-${x.k}">${esc(x.l)}</span>`).join("")}</div>` : ""}
       ${r.tema || r.motivo ? `<div class="meta">${esc([r.tema, r.motivo ? "Motivo: " + r.motivo : ""].filter(Boolean).join(" · "))}</div>` : ""}
       ${fechas ? `<div class="meta">${esc(fechas)}</div>` : ""}
       ${dupl.de[r.codigo] ? `<div class="meta">🔁 Duplicado de <a href="#" data-ir="${esc(dupl.de[r.codigo])}">${esc(dupl.de[r.codigo])}</a></div>` : ""}
@@ -245,6 +261,7 @@ function indiceDuplicados() {
   return { de, copias };
 }
 $("#f-text").oninput = renderR; $("#f-estado").onchange = renderR; $("#f-busq").onchange = renderR;
+fill($("#f-tema"), [["", "Todos los temas"], ...TEMAS.map(([k, l]) => [k, l]), ["ninguno", "Sin tema detectado"]]); $("#f-tema").onchange = renderR;
 
 function renderP() {
   $("#prisma-svg").innerHTML = R.length || B.length ? Prisma.diagrama(B, R) : `<div class="empty">El diagrama se arma solo cuando registres búsquedas y referencias.</div>`;
@@ -286,6 +303,7 @@ function acuerdoHtml() {
 }
 function renderAll() {
   renderB(); renderR(); renderP(); renderExtra();
+  if (typeof renderManual === "function") renderManual();
   fill($("#r-busqueda"), B.map(b => [b.id, `${b.base} · ${fdate(b.fecha)}`]), "Sin asociar");
   const fb = $("#f-busq").value;
   fill($("#f-busq"), B.map(b => [b.id, `${b.base} · ${fdate(b.fecha)}`]), "Todas las búsquedas");
@@ -377,7 +395,7 @@ $("#auto-btn").onclick = async () => {
   try {
     const d = await Autocompletar.buscar(entrada);
     let n = 0;
-    for (const k of ["titulo", "autores", "anio", "revista", "doi", "link", "resumen"]) {
+    for (const k of ["titulo", "autores", "anio", "revista", "doi", "link", "resumen", "notas"]) {
       const v = String(d[k] ?? "").trim();
       if (v && !$("#r-" + k).value.trim()) { $("#r-" + k).value = v; n++ }
     }
@@ -395,12 +413,12 @@ $("#auto-btn").onclick = async () => {
       box.hidden = false;
       box.innerHTML = `<div class="oa"><a href="${esc(d.linkAbierto)}" target="_blank" rel="noopener" style="color:var(--ok);font-weight:600">Versión de acceso abierto ↗</a><span class="note">Ábrela, baja el PDF y súbelo con «Subir PDF».</span></div>`;
     } else box.hidden = true;
-    toast(n ? `Completé ${n} campo${n > 1 ? "s" : ""} con datos de ${d.fuentes.join(", ")}. Revísalos.` : "No había campos vacíos para completar.", 4000);
+    toast(n ? `Completé ${n} campo${n > 1 ? "s" : ""} con datos de ${d.fuentes.join(", ")}${d.libro ? " (libro)" : ""}.${d.porTitulo ? " Lo encontré por el título: fíjate que sea el correcto." : " Revísalos."}` : "No había campos vacíos para completar.", d.porTitulo ? 7000 : 4000);
   } catch (e) {
     if (e.message === "sin-id") {
       if (/^https?:\/\//i.test(entrada) && !$("#r-link").value) $("#r-link").value = entrada;
-      toast("No encontré un DOI ni un PMID ahí. Guardé el link; busca el DOI en la página del artículo y pégalo para completar el resto.", 6000);
-    } else toast("No encontré ese artículo en OpenAlex, Crossref ni PubMed. Complétalo a mano.", 5000);
+      toast("No encontré un DOI, PMID ni ISBN ahí. Guardé el link; pega el DOI, el ISBN o el título completo para completar el resto.", 6000);
+    } else toast("No lo encontré en OpenAlex, Crossref, PubMed, Google Books ni Open Library. Complétalo a mano.", 5000);
   } finally { btn.disabled = false; btn.textContent = "Completar" }
 };
 $("#auto-in").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("#auto-btn").click() } });

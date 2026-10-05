@@ -1,5 +1,5 @@
-// Autocompletar una referencia a partir de un DOI, PMID o link.
-// Fuentes (todas gratuitas y abiertas): OpenAlex, Crossref y PubMed.
+// Autocompletar una referencia a partir de un DOI, PMID, ISBN, link o título.
+// Fuentes (todas gratuitas y abiertas): OpenAlex, Crossref, PubMed, Google Books y Open Library.
 (function () {
   const quitarTags = s => String(s || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 
@@ -10,9 +10,22 @@
     if (doi) return { doi: doi[0].replace(/[.,;)\]]+$/, "").replace(/\/(full|abstract|pdf|epdf|html)$/i, "") };
     const pmc = t.match(/PMC\d+/i);
     if (pmc) return { pmcid: pmc[0].toUpperCase() };
+    // Libros: link de Google Books u Open Library, o un ISBN (10 o 13 dígitos, con o sin guiones)
+    const gb = t.match(/books\.google\.[a-z.]+\/books(?:\/edition\/[^/]+\/|\?(?:[^#]*&)?id=)([\w-]{8,})/i);
+    if (gb) return { gbid: gb[1] };
+    const ol = t.match(/openlibrary\.org\/isbn\/([\dXx-]+)/i);
+    const isbnTxt = ol ? ol[1] : (t.match(/(?:ISBN(?:-1[03])?[:\s]*)?((?:97[89][-\s]?)?\d[\d\s-]{7,15}[\dXx])/i) || [])[1];
+    if (isbnTxt) { const n = isbnTxt.replace(/[-\s]/g, "").toUpperCase(); if (isbnValido(n)) return { isbn: n } }
     const pm = t.match(/pubmed\.ncbi\.nlm\.nih\.gov\/(\d+)/i) || t.match(/^(\d{4,9})$/);
     if (pm) return { pmid: pm[1] };
+    // Un título (al menos tres palabras y no es un link): se busca por título
+    if (!/^https?:\/\//i.test(t) && t.split(/\s+/).length >= 3) return { titulo: t };
     return null;
+  }
+  function isbnValido(n) {
+    if (/^\d{9}[\dX]$/.test(n)) return [...n].reduce((s, c, i) => s + (10 - i) * (c === "X" ? 10 : +c), 0) % 11 === 0;
+    if (/^97[89]\d{10}$/.test(n)) return [...n].reduce((s, c, i) => s + (i % 2 ? 3 : 1) * +c, 0) % 10 === 0;
+    return false;
   }
 
   async function getJson(url) {
@@ -40,7 +53,7 @@
   }
 
   async function openAlex(id) {
-    const clave = id.doi ? "doi:" + id.doi : id.pmid ? "pmid:" + id.pmid : "pmcid:" + id.pmcid;
+    const clave = id.openalex ? id.openalex : id.doi ? "doi:" + id.doi : id.pmid ? "pmid:" + id.pmid : "pmcid:" + id.pmcid;
     const w = await getJson("https://api.openalex.org/works/" + encodeURIComponent(clave));
     const paises = new Set();
     (w.authorships || []).forEach(a => {
@@ -113,9 +126,58 @@
     return out;
   }
 
+  /* ---------- Libros: Google Books y Open Library ---------- */
+  async function libro(id) {
+    const [gb, ol] = await Promise.all([
+      (id.gbid ? getJson("https://www.googleapis.com/books/v1/volumes/" + encodeURIComponent(id.gbid))
+        : getJson("https://www.googleapis.com/books/v1/volumes?q=" + encodeURIComponent("isbn:" + id.isbn)).then(j => (j.items || [])[0])).catch(() => null),
+      id.isbn ? getJson(`https://openlibrary.org/api/books?bibkeys=ISBN:${id.isbn}&format=json&jscmd=data`).then(j => j["ISBN:" + id.isbn]).catch(() => null) : null,
+    ]);
+    const v = gb && gb.volumeInfo;
+    const isbnGb = v && ((v.industryIdentifiers || []).find(x => x.type === "ISBN_13") || (v.industryIdentifiers || [])[0] || {}).identifier;
+    const deGb = v ? {
+      titulo: [v.title, v.subtitle].filter(Boolean).join(": "), autores: (v.authors || []).map(autorDesdeNombreCompleto).join(", "),
+      anio: (String(v.publishedDate || "").match(/\d{4}/) || [""])[0], editorial: v.publisher || "", resumen: quitarTags(v.description),
+      link: v.infoLink || v.canonicalVolumeLink || "", paginas: v.pageCount || "", isbn: isbnGb || id.isbn || "",
+    } : null;
+    const deOl = ol ? {
+      titulo: [ol.title, ol.subtitle].filter(Boolean).join(": "), autores: (ol.authors || []).map(a => autorDesdeNombreCompleto(a.name)).join(", "),
+      anio: (String(ol.publish_date || "").match(/\d{4}/) || [""])[0], editorial: ((ol.publishers || [])[0] || {}).name || "",
+      lugar: ((ol.publish_places || [])[0] || {}).name || "", link: ol.url || "", paginas: ol.number_of_pages || "", isbn: id.isbn || "",
+    } : null;
+    if (!deGb && !deOl) throw new Error("no-encontrado");
+    const d = unir(deGb, deOl);
+    d.revista = "Libro · " + [d.editorial, d.lugar].filter(Boolean).join(", ");
+    d.notas = [d.isbn ? "ISBN " + d.isbn : "", d.paginas ? d.paginas + " p." : ""].filter(Boolean).join(" · ");
+    d.doi = ""; d.fuentes = [deGb && "Google Books", deOl && "Open Library"].filter(Boolean); d.libro = true;
+    return d;
+  }
+
+  // Búsqueda por título: artículos, informes y libros (OpenAlex) o libros (Google Books)
+  const palabrasT = t => new Set(String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter(w => w.length > 2));
+  const parecido = (a, b) => { const A = palabrasT(a), B = palabrasT(b); let c = 0; A.forEach(w => { if (B.has(w)) c++ }); return c / Math.max(1, A.size + B.size - c) };
+  async function porTitulo(t) {
+    const [oa, gb] = await Promise.all([
+      getJson("https://api.openalex.org/works?per-page=5&search=" + encodeURIComponent(t)).then(j => j.results || []).catch(() => []),
+      getJson("https://www.googleapis.com/books/v1/volumes?maxResults=5&q=" + encodeURIComponent("intitle:" + t)).then(j => j.items || []).catch(() => []),
+    ]);
+    const mejorOa = oa.map(w => ({ w, s: parecido(t, w.display_name) })).sort((a, b) => b.s - a.s)[0];
+    const mejorGb = gb.map(g => ({ g, s: parecido(t, [g.volumeInfo.title, g.volumeInfo.subtitle].filter(Boolean).join(" ")) })).sort((a, b) => b.s - a.s)[0];
+    let d;
+    if (mejorOa && mejorOa.s >= 0.6 && (!mejorGb || mejorOa.s >= mejorGb.s)) {
+      const doi = mejorOa.w.doi ? mejorOa.w.doi.replace(/^https?:\/\/doi\.org\//i, "") : "";
+      d = doi ? await buscar(doi) : { ...(await openAlex({ openalex: mejorOa.w.id.split("/").pop() })), fuentes: ["OpenAlex"] };
+    } else if (mejorGb && mejorGb.s >= 0.6) d = await libro({ gbid: mejorGb.g.id });
+    else throw new Error("no-encontrado");
+    d.porTitulo = true;
+    return d;
+  }
+
   async function buscar(texto) {
     const id = reconocer(texto);
     if (!id) throw new Error("sin-id");
+    if (id.isbn || id.gbid) return libro(id);
+    if (id.titulo) return porTitulo(id.titulo);
     const oa = await openAlex(id).catch(() => null);
     const doi = id.doi || (oa && oa.doi);
     const pmid = id.pmid || (oa && oa.pmid);

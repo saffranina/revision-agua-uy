@@ -259,6 +259,13 @@ svg.graf{width:100%;height:auto;display:block}
 .auto-estado{display:grid;gap:6px} .auto-num{font-size:.95rem}
 nav.tabs small{font-size:.65em;font-weight:700;text-transform:uppercase;letter-spacing:.04em;opacity:.7}
 .mias{margin:6px 0 14px;padding-left:18px;display:grid;gap:6px} .mias li{line-height:1.4}
+.temas{display:flex;flex-wrap:wrap;gap:4px;margin:3px 0} .tema{font-size:.75rem;font-weight:700;padding:1px 8px;border-radius:999px;background:color-mix(in srgb, var(--lav) 35%, var(--surface));color:var(--ink)}
+.tema.t-ciano,.tema.t-agro{background:color-mix(in srgb, var(--ok) 22%, var(--surface))}
+.man{border-top:1px dashed var(--line);padding:8px 0;display:grid;gap:3px} .man .links{display:flex;flex-wrap:wrap;gap:4px 12px}
+.man-form{display:grid;gap:6px;margin-top:4px}
+.dup-par{border:2px solid var(--line);border-radius:14px;padding:10px;margin:10px 0;display:grid;gap:6px}
+.dup-ficha{background:var(--bg);border-radius:10px;padding:8px;line-height:1.4}
+#dlg-dup form{padding:16px;display:grid;gap:8px}
 details.cadenas{background:var(--surface);border:2px solid var(--lav);border-radius:16px;padding:8px 12px}
 details.cadenas>summary{cursor:pointer;font-weight:800;color:var(--accent)}
 .cad-grupo{font-family:var(--f-display);font-weight:600;font-size:1rem;margin:14px 0 6px;color:var(--ink)}
@@ -358,6 +365,9 @@ table.chk input{min-width:70px}
       <p class="note">Las del protocolo, listas para pegar en cada base. «Abrir en…» lanza la búsqueda directamente. Después vuelve acá y regístrala con «+ Nueva búsqueda».</p>
       <div class="cad-cuerpo"></div>
     </details>
+    <details class="cadenas" id="manual-box"><summary>📚 Búsqueda manual y literatura gris</summary>
+      <div id="manual-lista"></div>
+    </details>
     <div class="bar"><h2 class="grow">Búsquedas realizadas</h2><button class="btn edit-only" id="add-b">+ Nueva búsqueda</button></div>
     <div class="list" id="list-b"><div class="empty">Cargando búsquedas…</div></div>
   </section>
@@ -385,7 +395,13 @@ table.chk input{min-width:70px}
       <input class="grow" id="f-text" type="search" placeholder="Buscar por código, título, autor, DOI o nota">
       <select id="f-estado" style="flex:0 1 220px"></select>
       <select id="f-busq" style="flex:0 1 220px"></select>
+      <select id="f-tema" style="flex:0 1 200px" aria-label="Tema"></select>
     </div>
+    <div class="bar edit-only">
+      <button type="button" class="btn ghost" id="pdf-lote">📄 Buscar PDFs abiertos (Fase 2 e incluidos)</button>
+      <button type="button" class="btn ghost" id="dup-btn">🔍 Posibles duplicados</button>
+    </div>
+    <div id="pdf-res" class="oa" hidden></div>
     <div class="list" id="list-r"></div>
   </section>
 
@@ -517,10 +533,10 @@ table.chk input{min-width:70px}
   <div class="autobox edit-only">
     <span class="lbl">Completar solo</span>
     <div class="bar">
-      <input class="grow" id="auto-in" placeholder="Pega el DOI, el PMID o el link del artículo" autocomplete="off">
+      <input class="grow" id="auto-in" placeholder="Pega el DOI, PMID, ISBN, link o el título" autocomplete="off">
       <button type="button" class="btn" id="auto-btn">Completar</button>
     </div>
-    <span class="note">Busca el artículo en OpenAlex, Crossref y PubMed y llena los campos vacíos. Después revisa y corrige lo que haga falta.</span>
+    <span class="note">Artículos: DOI, PMID o link (OpenAlex, Crossref, PubMed). <b>Libros</b>: ISBN o link de Google Books (Google Books, Open Library). Informes y otros: el título completo. Llena los campos vacíos; después revisa y corrige lo que haga falta.</span>
   </div>
   <div id="uy-check" class="uycheck" hidden></div>
   <label>Título<textarea id="r-titulo" required style="min-height:60px"></textarea></label>
@@ -569,6 +585,11 @@ table.chk input{min-width:70px}
     <button type="button" class="btn ghost" data-close>Cerrar</button>
     <button class="btn" type="submit" id="r-save">Guardar</button>
   </div>
+</form></dialog>
+
+<dialog id="dlg-dup"><form method="dialog">
+  <div class="bar"><h2 class="grow">Posibles duplicados</h2><button class="btn ghost">Cerrar</button></div>
+  <div id="dup-lista"></div>
 </form></dialog>
 
 <dialog id="dlg-c" class="crib"><div class="cwrap">
@@ -647,16 +668,17 @@ table.chk input{min-width:70px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="config.js?v=44"></script>
-<script src="autocompletar.js?v=44"></script>
-<script src="importar.js?v=44"></script>
-<script src="prisma.js?v=44"></script>
+<script src="config.js?v=47"></script>
+<script src="autocompletar.js?v=47"></script>
+<script src="importar.js?v=47"></script>
+<script src="prisma.js?v=47"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
-<script src="prioridad.js?v=44"></script>
-<script src="app.js?v=44"></script>
-<script src="estudios.js?v=44"></script>
-<script src="extras.js?v=44"></script>
-<script src="cadenas.js?v=44"></script>
-<script src="buscador.js?v=44"></script>
+<script src="prioridad.js?v=47"></script>
+<script src="app.js?v=47"></script>
+<script src="estudios.js?v=47"></script>
+<script src="extras.js?v=47"></script>
+<script src="cadenas.js?v=47"></script>
+<script src="buscador.js?v=47"></script>
+<script src="herramientas.js?v=47"></script>
 </body>
 </html>
