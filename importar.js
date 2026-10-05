@@ -56,12 +56,13 @@
     const todos = Array.from(doc.getElementsByTagName("*"));
     const nombre = e => (e.getAttribute("name") || e.localName || "").toLowerCase();
     const CAMPOS = {
-      titulo: ["ti", "ti_es", "ti_en", "ti_pt", "title", "titulo", "article_title"],
+      titulo: ["ti_es", "ti", "ti_en", "ti_pt", "title", "titulo", "article_title", "book_title"],
       autores: ["au", "author", "authors", "autor", "autores", "creator"],
       resumen: ["ab", "ab_es", "ab_en", "ab_pt", "abstract", "resumen", "description"],
       anio: ["da", "year", "year_cluster", "py", "dp", "date", "publication_year", "ano", "anio"],
       revista: ["ta", "journal", "fo", "source", "revista", "jt"],
-      doi: ["doi"],
+      doi: ["doi", "aid"],
+      afil: ["pais_afiliacao", "instituicao_pais_afiliacao", "affiliation", "afiliacion"],
       link: ["ur", "url", "link", "fulltext"],
       db: ["db"],
       id: ["id"],
@@ -78,22 +79,30 @@
       });
       return out;
     };
+    // La BVS trae título y resumen en varios idiomas: se prefiere el castellano
+    const esp = v => (` ${v} `.match(/ (el|los|las|del|y|una|para|con) |ción/gi) || []).length - (` ${v} `.match(/ (the|and|of|não|uma|com|dos) |ção/gi) || []).length;
+    const enCastellano = lista => lista.slice().sort((a, b) => esp(b) - esp(a))[0];
     const refs = registros.map(r => {
       const doiTxt = valores(r, CAMPOS.doi).concat(valores(r, CAMPOS.link)).join(" ");
       const doi = (doiTxt.match(/10\.\d{4,9}\/[^\s"<>]+/) || [""])[0];
       const id = valores(r, CAMPOS.id)[0] || "";
       const link = valores(r, CAMPOS.link).find(u => /^https?:\/\//.test(u)) || (doi ? "https://doi.org/" + doi : id ? "https://pesquisa.bvsalud.org/portal/resource/es/" + encodeURIComponent(id) : "");
       return {
-        titulo: sinPunto(valores(r, CAMPOS.titulo)[0]),
+        titulo: sinPunto(enCastellano(valores(r, CAMPOS.titulo))),
         autores: [...new Set(valores(r, CAMPOS.autores))].join("; "),
         anio: (valores(r, CAMPOS.anio).join(" ").match(/(?:^|\D)((?:19|20)\d{2})/) || ["", ""])[1],
         revista: valores(r, CAMPOS.revista)[0] || "",
-        doi, link, resumen: valores(r, CAMPOS.resumen)[0] || "",
-        db: valores(r, CAMPOS.db).join(" "), afiliaciones: "",
+        doi, link, resumen: enCastellano(valores(r, CAMPOS.resumen)) || "",
+        db: valores(r, CAMPOS.db).join(" "), afiliaciones: valores(r, CAMPOS.afil).join("; ").replace(/\^[a-z]/g, " "),
       };
     });
     const nf = (texto.match(/numFound="(\d+)"/) || [])[1];
     refs.total = nf ? Number(nf) : undefined;
+    // La BVS guarda en el archivo la búsqueda, los filtros y cuántos registros exportó
+    const param = n => Array.from(doc.getElementsByTagName("str")).filter(e => e.getAttribute("name") === n && e.parentNode && e.parentNode.getAttribute("name") === "params").map(e => limpio(e.textContent));
+    refs.cadena = param("q")[0] || "";
+    refs.filtros = param("fq").map(f => f.replace(/\{![^}]*\}/g, "")).join("; ");
+    refs.filas = Number(param("rows")[0]) || 0;
     return refs;
   }
 
@@ -375,7 +384,7 @@
     const lector = { ris, pubmed, xml, dc, feed, bibtex, csv, bvs }[formato];
     const todos = lector(texto), refs = todos.filter(r => r.titulo);
     if (formato === "bvs" && !refs.length) throw new Error("formato");
-    return { formato, refs, base: baseDeArchivo(formato, refs) || (formato === "bvs" && /bvsalud|lilacs/i.test(texto) ? "LILACS" : ""), total: todos.total };
+    return { formato, refs, base: baseDeArchivo(formato, refs) || (formato === "bvs" && /bvsalud|lilacs/i.test(texto) ? "LILACS" : ""), total: todos.total, cadena: todos.cadena, filtros: todos.filtros };
   }
 
   // Marca como duplicado lo que ya está en el registro o se repite dentro del archivo

@@ -410,7 +410,11 @@ function mostrarImportacion(origen, donde, leido, aviso) {
   // Completa la búsqueda con lo que trae el archivo
   if (actualizando) $("#b-n").value = refs.length;
   else if (!editB || !Number($("#b-n").value)) $("#b-n").value = leido.total ?? refs.length;
-  if (leido.base && !editB) $("#b-base").value = leido.base;
+  if (leido.base && !editB) { $("#b-base").value = leido.base; $("#b-base").dispatchEvent(new Event("change")) }
+  if (leido.cadena && !$("#b-cadena").value.trim()) $("#b-cadena").value = leido.cadena;
+  if (leido.filtros && !$("#b-filtros").value.trim()) $("#b-filtros").value = leido.filtros;
+  // La BVS exporta por defecto solo la página que se está viendo (20)
+  if (leido.formato === "bvs" && leido.total > leido.refs.length) aviso = [aviso, `El archivo tiene ${leido.refs.length} de los ${leido.total} resultados de la búsqueda. En la BVS, al exportar, elige exportar todos los resultados (no solo esta página) y vuelve a adjuntarlo.`].filter(Boolean).join(" ");
   res.innerHTML = `<span><b>${refs.length}</b> artículos ${donde}.</span>
     ${aviso ? `<span class="uycheck warn">${esc(aviso)}</span>` : ""}
     ${!actualizando && !$("#b-cadena").value.trim() ? `<span class="uycheck warn">El archivo trae los artículos pero no la cadena de búsqueda (los RIS, BibTeX y CSV nunca la incluyen). Pega arriba el link de la página de resultados y se completa sola, o cópiala a mano.</span>` : ""}
