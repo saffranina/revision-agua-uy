@@ -84,7 +84,23 @@ function aplicar(j) {
   renderAll();
 }
 // Llama al motor y traduce cada falla a un mensaje que diga qué revisar
-async function api(accion, datos) {
+// Una llamada al motor por vez (varias juntas hacen que Google falle) y reintento si Google
+// responde «No se pudo abrir el archivo en este momento», que es una falla momentánea suya
+let colaApi = Promise.resolve();
+function api(accion, datos) {
+  const turno = colaApi.then(async () => {
+    for (let intento = 0; ; intento++) {
+      try { return await apiUna(accion, datos) }
+      catch (e) {
+        if (!e.momentaneo || intento >= 3) throw e;
+        await new Promise(ok => setTimeout(ok, 1500 * 2 ** intento));
+      }
+    }
+  });
+  colaApi = turno.catch(() => { });
+  return turno;
+}
+async function apiUna(accion, datos) {
   if (!window.API_URL) throw new Error("La página todavía no tiene la dirección del motor. Espera unos minutos y recarga.");
   let r, texto;
   try {
@@ -99,6 +115,7 @@ async function api(accion, datos) {
     // Texto del error de Google, para saber qué pasó (por ejemplo «No se encontró la función de secuencia de comandos: doPost»)
     const detalle = texto.replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&[a-z#0-9]+;/gi, " ").replace(/\s+/g, " ").trim().slice(0, 160);
     if (/doPost|doGet|funci[oó]n de secuencia|script function/i.test(texto)) throw new Error("El motor no tiene la función doPost/doGet: el código de Apps Script quedó incompleto. Vuelve a pegar el código completo, guarda y publica una Nueva versión. (Google dice: " + detalle + ")");
+    if (/no se pudo abrir el archivo|unable to open the file/i.test(texto)) { const e = new Error("Google tuvo una falla momentánea («No se pudo abrir el archivo en este momento»). Espera un minuto y vuelve a intentar."); e.momentaneo = true; throw e }
     if (/no se encontr|not found|unable to open|no se pudo abrir/i.test(texto)) throw new Error("Google no encontró el motor: revisa que la URL sea la de la implementación actual. (Google dice: " + detalle + ")");
     throw new Error(`El motor respondió algo inesperado (código ${r.status}). Mándale una captura a Claude.`);
   }

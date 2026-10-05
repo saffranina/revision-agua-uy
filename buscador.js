@@ -28,8 +28,8 @@
       web: c => "https://pesquisa.bvsalud.org/portal/?lang=es&q=" + encodeURIComponent(una(c)) + "&filter%5Bdb%5D%5B%5D=LILACS" },
     { id: "epmc", nombre: "Europe PMC", nota: "Incluye MEDLINE, PMC, preprints y tesis. Se superpone con PubMed: los repetidos se marcan solos.", motor: false,
       web: c => "https://europepmc.org/search?query=" + encodeURIComponent(una(c)) },
-    { id: "openalex", nombre: "OpenAlex", nota: "Índice abierto muy amplio (reemplaza en parte a Scopus y Google Scholar). Busca en título, resumen y texto completo.", motor: false,
-      web: c => "https://openalex.org/works?search=" + encodeURIComponent(una(c)) },
+    { id: "openalex", nombre: "OpenAlex", nota: "Índice abierto muy amplio (reemplaza en parte a Scopus y Google Scholar). Busca en título y resumen.", motor: false,
+      web: c => "https://openalex.org/works?filter=" + encodeURIComponent("title_and_abstract.search:" + una(c).replace(/,/g, " ")) },
     { id: "colibri", nombre: "Colibri (UdelaR)", nota: "Repositorio de la Universidad de la República (tesis e informes). La trae el motor.", motor: true,
       web: c => "https://www.colibri.udelar.edu.uy/jspui/simple-search?query=" + encodeURIComponent(c) },
   ];
@@ -38,10 +38,15 @@
   async function traer(base, c, avance) {
     if (base === "pubmed") return Importar.traerPubmed(BASES_AUTO[0].web(c), avance);
     if (base === "bvs") {
-      const u = new URL(BASES_AUTO[1].web(c)); u.searchParams.set("output", "xml"); u.searchParams.set("count", String(MAX)); u.searchParams.set("from", "0");
+      const u = new URL(BASES_AUTO[1].web(c)); u.searchParams.set("output", "xml"); u.searchParams.set("count", "1000"); u.searchParams.set("from", "1");
       avance("Buscando en la BVS…");
       const r = await api("traerUrl", { url: u.href });
-      const leido = Importar.leer(r.texto || "");
+      let leido;
+      try { leido = Importar.leer(r.texto || "") }
+      catch (e) {
+        const muestra = String(r.texto || "").replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 140);
+        throw new Error(`la BVS no devolvió el XML esperado (código ${r.status}${muestra ? ": «" + muestra + "»" : ", respuesta vacía"}). Usa «Ver en la web», exporta en XML o RIS y adjúntalo en + Nueva búsqueda`);
+      }
       return { refs: leido.refs, total: leido.total ?? leido.refs.length };
     }
     if (base === "epmc") return europePmc(c, avance);
@@ -78,7 +83,8 @@
     const refs = []; let cursor = "*", total = 0;
     while (refs.length < MAX && cursor) {
       avance(refs.length ? `Trayendo… ${refs.length} de ${total}` : "Buscando en OpenAlex…");
-      const r = await fetch("https://api.openalex.org/works?" + new URLSearchParams({ search: una(c), "per-page": "200", cursor,
+      // Solo en título y resumen: «search» también mira el texto completo y trae miles de artículos que apenas mencionan el tema
+      const r = await fetch("https://api.openalex.org/works?" + new URLSearchParams({ filter: "title_and_abstract.search:" + una(c).replace(/,/g, " "), "per-page": "200", cursor,
         select: "id,doi,display_name,publication_year,authorships,primary_location,abstract_inverted_index" }));
       if (!r.ok) throw new Error("OpenAlex respondió con error " + r.status);
       const j = await r.json(); total = (j.meta && j.meta.count) || 0;
@@ -157,7 +163,8 @@
     res[id] = { ...x, cargando: "Registrando la búsqueda…" }; pintar(b);
     try {
       const hoy = new Date().toLocaleDateString("sv");
-      const j = await api("guardarBusqueda", { base: b.nombre, fecha: hoy, cadena: x.cadena.trim(), filtros: id === "bvs" ? "Base de datos: LILACS" : "",
+      x.idBusqueda = x.idBusqueda || "B" + Math.random().toString(16).slice(2, 10);
+      const j = await api("guardarBusqueda", { id: x.idBusqueda, base: b.nombre, fecha: hoy, cadena: x.cadena.trim(), filtros: id === "bvs" ? "Base de datos: LILACS" : "",
         n: x.total, campos: "", link: x.web, metodo: Prisma.OTROS_POR_DEFECTO.includes(b.nombre) ? "otros" : "bases",
         notas: `Búsqueda automática (beta) desde la página, interés ${x.grupo}.` + (soloUy ? " Se cargaron solo los relacionados con Uruguay." : "") + (x.refs.length < x.total ? ` Se trajeron ${x.refs.length} de ${x.total}.` : "") });
       const lista = marcados.map(r => ({ titulo: r.titulo, autores: r.autores, anio: r.anio, revista: r.revista, doi: r.doi, link: r.link, resumen: r.resumen,
