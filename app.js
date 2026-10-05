@@ -460,9 +460,26 @@ $("#bl-btn").onclick = () => {
   if (d.cadena) $("#b-cadena").value = d.cadena;
   if (d.filtros) $("#b-filtros").value = d.filtros;
   $("#b-link").value = d.link; mostrarPm();
+  if (/bvsalud/.test(d.sitio) && d.cadena) { contarBvs(d.link); return }
   toast(d.cadena ? `Listo: ${d.base}${d.filtros ? ", con filtros" : ""}. Revisa los campos y completa la cantidad de resultados si no adjuntas archivo.`
     : `Reconocí ${d.base}, pero el link no trae la búsqueda escrita. Cópiala a mano en «Cadena de búsqueda».`, 6000);
 };
+// BVS/LILACS: el motor baja los resultados y se lee el total (primero en XML, si no en la página)
+async function contarBvs(link) {
+  toast("Leyendo cuántos resultados hay en la BVS…", 15000);
+  const total = texto => {
+    const m = texto.match(/numFound="(\d+)"/) || texto.match(/<total[^>]*>\s*([\d.,]+)/i)
+      || texto.replace(/<[^>]+>/g, " ").match(/(?:Resultados?|Results?)\s*:?\s*\d+\s*[-–]\s*\d+\s+(?:de|of|do)\s+([\d.,]+)/i);
+    return m ? Number(m[1].replace(/[.,\s]/g, "")) : NaN;
+  };
+  let n = NaN;
+  const xml = new URL(link); xml.searchParams.set("output", "xml"); xml.searchParams.set("count", "1");
+  for (const u of [xml.href, link]) {
+    try { const r = await api("traerUrl", { url: u }); n = total(r.texto || ""); if (n >= 0) break } catch (e) { }
+  }
+  if (n >= 0) { $("#b-n").value = n; toast(`Listo: ${$("#b-base").value}, ${n} resultados. Compara con el número que muestra la BVS.`, 7000) }
+  else toast("Completé la base, la cadena y los filtros, pero no pude leer cuántos resultados hay: anótalo a mano (está arriba de la lista en la BVS).", 8000);
+}
 function mostrarPm() {
   $("#pm-btn").hidden = !/pubmed\.ncbi\.nlm\.nih\.gov\/.*term=/i.test($("#b-link").value);
   const hilo = Importar.linkHiloColibri($("#b-link").value);
