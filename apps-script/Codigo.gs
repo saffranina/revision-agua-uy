@@ -536,7 +536,7 @@ function siguienteCodigo_(hoja) {
 
 // R004_Gonzalez_2019_Nitratos-agua-consumo-rural-Uruguay.pdf
 function nombrePdf_(r) {
-  const limpio = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+  const limpio = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^A-Za-z0-9 ]+/g, ' ').trim();
   const apellido = limpio(String(r.autores || '').split(/[,;]/)[0]).split(/\s+/)[0] || 'SinAutor';
   const titulo = limpio(r.titulo).split(/\s+/).filter((w) => w.length > 2).slice(0, 5).join('-') || 'SinTitulo';
