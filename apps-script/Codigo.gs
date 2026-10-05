@@ -138,7 +138,8 @@ function doPost(e) {
   }
   const rol = rol_(pedido.clave);
   if (!rol.admin && !rol.revisor) return json_({ ok: false, error: 'Clave incorrecta.' });
-  const soloAdmin = ['guardarBusqueda', 'borrarBusqueda', 'borrarReferencia', 'importarReferencias'];
+  // Todos los revisores buscan, importan y cargan; borrar queda para administración
+  const soloAdmin = ['borrarBusqueda', 'borrarReferencia'];
   if (soloAdmin.includes(pedido.accion) && !rol.admin) return json_({ ok: false, error: 'Esto lo hace solo quien administra.' });
 
   const lock = LockService.getScriptLock();

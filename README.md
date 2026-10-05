@@ -73,7 +73,8 @@ const REVISORES = {
 };
 ```
 
-- **Administración** (`CLAVE`): registra búsquedas, importa, edita y borra. Puede ser la misma clave que la del Revisor 1.
+- **Todos los revisores** registran búsquedas, importan, agregan y editan referencias y suben PDF.
+- **Administración** (`CLAVE`): además borra, edita el protocolo y cambia estados a mano. Puede ser la misma clave que la del Revisor 1.
 - **Revisor 1 y Revisor 2**: criban a ciegas las dos fases. Cada uno ve solo sus decisiones y cuánto avanzó el otro, nunca qué decidió.
 - **Revisor 3**: no criba; resuelve conflictos.
 - Si los dos coinciden, el artículo avanza solo. Si no, aparece en **⚖️ Conflictos** (solo cuando los dos decidieron) y se resuelve por **consenso entre Revisor 1 y 2** o por **decisión del Revisor 3**; queda registrado cuál.

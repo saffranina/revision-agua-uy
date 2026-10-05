@@ -99,6 +99,8 @@ async function api(accion, datos) {
     if (/no se encontr|not found|unable to open|no se pudo abrir/i.test(texto)) throw new Error("Google no encontró el motor: revisa que la URL sea la de la implementación actual.");
     throw new Error(`El motor respondió algo inesperado (código ${r.status}). Mándale una captura a Claude.`);
   }
+  if (!j.ok && j.error === "Esto lo hace solo quien administra." && ["guardarBusqueda", "importarReferencias"].includes(accion))
+    throw new Error("El motor todavía no deja buscar a los revisores: en Apps Script, en la línea «const soloAdmin», deja solo 'borrarBusqueda', 'borrarReferencia' y publica una Nueva versión");
   if (!j.ok) throw new Error(j.error || "Error desconocido");
   return j;
 }
@@ -273,7 +275,7 @@ function renderAll() {
 
 /* ---------- Diálogos ---------- */
 function lock(form) {
-  const ro = !clave || (form.id === "form-b" && !rol.admin);
+  const ro = !clave;
   form.querySelectorAll("input,select,textarea").forEach(i => { if (i.type !== "file") i.disabled = ro });
   form.querySelector('button[type="submit"]').hidden = ro;
 }
@@ -290,7 +292,7 @@ function openB(id) {
   const hist = id ? [{ fecha: d.creado, accion: "Registrada" }, ...(d.actualizado && d.actualizado !== d.creado ? [{ fecha: d.actualizado, accion: "Última edición" }] : [])] : [];
   $("#b-hist").innerHTML = histHtml(hist); $("#b-hist").hidden = !id;
   $("#bl-url").value = ""; $("#imp-file").value = ""; $("#imp-res").hidden = true; importando = null; actualizando = null;
-  $("#upd-btn").hidden = !id || !clave || !rol.admin;
+  $("#upd-btn").hidden = !id || !clave;
   $("#feed-url").value = ""; $("#feed-box").open = false;
   $("#b-link").value = d.link || ((String(d.notas || "").match(/Link de resultados: (\S+)/) || [])[1] || ""); mostrarPm();
   lock($("#form-b")); $("#dlg-b").showModal();
