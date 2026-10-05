@@ -625,7 +625,10 @@ function resaltar(texto) {
 
 /* ---------- Cribado: artículo por artículo ---------- */
 const MOTIVOS = ["No es en Uruguay", "No es agua de consumo humano", "Agua recreativa", "No evalúa salud humana", "Salud animal o estudio en animales", "Contaminante fuera del alcance", "Diseño no elegible", "No es un estudio original"];
-let cribActual = null, cribHist = [], cribSaltados = new Set();
+let cribActual = null, cribHist = [], cribSaltados = new Set(), cribRevisar = null;
+// Los saltados se recuerdan en el dispositivo (por persona) hasta que se deciden
+const claveSaltados = () => "saltados:" + ((rol && rol.revisor) || "admin");
+function guardarSaltados() { store.set(claveSaltados(), cribSaltados.size ? JSON.stringify([...cribSaltados]) : null) }
 let PRIO = { puntajes: new Map(), modelo: { listo: false, pos: 0, neg: 0 } };
 function calcularPrioridad() {
   const lista = R.filter(r => r.estadoK === "pend" || r.estadoK === "ft");
@@ -639,7 +642,8 @@ function colaFase() {
 function renderCrib() {
   const fase = $("#c-fase").value, cola = colaFase();
   const total = doble ? cola.length + cribSaltados.size : R.filter(r => r.estadoK === fase && (!$("#f-busq").value || r.busqueda === $("#f-busq").value)).length;
-  if (!cribActual || cribActual.estadoK !== fase || cribSaltados.has(cribActual.codigo) || (doble && mias.has(claveDec(cribActual.codigo, faseNum())))) cribActual = cola[0] || null;
+  if (cribActual && cribActual.codigo === cribRevisar) cribActual = R.find(r => r.codigo === cribRevisar) || null;
+  else if (!cribActual || cribActual.estadoK !== fase || cribSaltados.has(cribActual.codigo) || (doble && mias.has(claveDec(cribActual.codigo, faseNum())))) cribActual = cola[0] || null;
   else cribActual = R.find(r => r.codigo === cribActual.codigo) || cola[0] || null;
   $("#c-excl").hidden = true; $("#c-undo").hidden = !cribHist.length;
   const hechas = [...mias.keys()].filter(k => k.endsWith("|" + faseNum())).length;
@@ -654,7 +658,7 @@ function renderCrib() {
     card.innerHTML = `<div class="empty">${cribSaltados.size ? `No quedan más, salvo ${cribSaltados.size} que saltaste. <button type="button" class="btn ghost" id="c-reset">Volver a ver los saltados</button>`
       : doble ? `¡Terminaste esta fase! 🎉 Cuando ${otroAvance && otroAvance.revisor ? otroAvance.revisor : "el otro revisor"} también termine, los desacuerdos aparecen en «⚖️ Conflictos».`
       : fase === "pend" ? "¡No quedan artículos pendientes de cribado! 🎉" : "No hay artículos esperando la lectura a texto completo."}</div>`;
-    const rs = $("#c-reset"); if (rs) rs.onclick = () => { cribSaltados.clear(); renderCrib() };
+    const rs = $("#c-reset"); if (rs) rs.onclick = () => { cribSaltados.clear(); guardarSaltados(); renderCrib() };
     return;
   }
   $("#c-btns").hidden = false;
@@ -671,7 +675,7 @@ function renderCrib() {
   card.scrollTop = 0;
 }
 async function abrirCrib() {
-  cribSaltados.clear(); cribHist = []; cribActual = null;
+  cribHist = []; cribActual = null; cribRevisar = null;
   doble = !!(rol && (rol.revisor === "Revisor 1" || rol.revisor === "Revisor 2"));
   mias = new Map(); otroAvance = null;
   if (doble) {
@@ -682,6 +686,7 @@ async function abrirCrib() {
     } catch (e) { toast("No pude cargar tus decisiones: " + e.message, 6000); return }
     finally { btn.disabled = false; btn.textContent = "▶ Cribar" }
   }
+  try { cribSaltados = new Set(JSON.parse(store.get(claveSaltados()) || "[]").filter(c => R.some(r => r.codigo === c && (r.estadoK === "pend" || r.estadoK === "ft")))) } catch (e) { cribSaltados = new Set() }
   $("#c-fase").value = R.some(r => r.estadoK === "pend") || !R.some(r => r.estadoK === "ft") ? "pend" : "ft";
   $("#c-motivos").innerHTML = MOTIVOS.map(m => `<button type="button">${esc(m)}</button>`).join("");
   $("#c-motivos").querySelectorAll("button").forEach(b => b.onclick = () => decidir(fase2Excl(), b.textContent));
@@ -696,8 +701,11 @@ function decidir(estado, motivo) {
     mias.set(claveDec(r.codigo, fase), { codigo: r.codigo, fase: String(fase), decision, motivo: motivo || "" });
     cribHist.push({ doble: true, codigo: r.codigo, fase });
     colaCrib.push({ doble: true, codigo: r.codigo, fase, decision, motivo: motivo || "" }); procesarCola();
-    cribActual = null; renderCrib(); return;
+    if (cribSaltados.delete(r.codigo)) guardarSaltados();
+    cribRevisar = null; cribActual = null; renderCrib(); return;
   }
+  if (cribSaltados.delete(r.codigo)) guardarSaltados();
+  cribRevisar = null;
   cribHist.push({ codigo: r.codigo, estadoK: r.estadoK, estado: r.estado, motivo: r.motivo, notas: r.notas });
   if (motivo === "__quiza") { motivo = ""; r.notas = [r.notas, "Quizás en el cribado por título y resumen"].filter(Boolean).join(" · ") }
   r.estadoK = estado; r.estado = estadoLabel(estado); r.motivo = motivo || "";
@@ -734,7 +742,7 @@ async function procesarCola() {
 function actualizarGuardado() { $("#c-guard").textContent = colaCrib.length ? (navigator.onLine ? `Guardando ${colaCrib.length}…` : `📴 ${colaCrib.length} para guardar cuando vuelva internet`) : "✓ Todo guardado" }
 $("#crib-btn").onclick = abrirCrib;
 $("#c-cerrar").onclick = () => $("#dlg-c").close();
-$("#c-fase").onchange = () => { cribActual = null; cribSaltados.clear(); renderCrib() };
+$("#c-fase").onchange = () => { cribActual = null; cribRevisar = null; renderCrib() };
 $("#c-orden").onchange = () => { cribActual = null; calcularPrioridad(); renderCrib(); store.set("orden", $("#c-orden").value) };
 if (store.get("orden")) $("#c-orden").value = store.get("orden");
 $("#c-si").onclick = () => decidir($("#c-fase").value === "pend" ? "ft" : "inc");
@@ -744,7 +752,32 @@ $("#c-motivo").addEventListener("keydown", e => { if (e.key === "Enter") { e.pre
 $("#c-dup").onclick = () => decidir("dup");
 $("#c-quiza").onclick = () => decidir("ft", "__quiza");
 $("#c-nr").onclick = () => decidir("nr", "Texto completo no disponible");
-$("#c-skip").onclick = () => { if (cribActual) { cribSaltados.add(cribActual.codigo); cribActual = null; renderCrib() } };
+$("#c-skip").onclick = () => { if (cribActual) { cribSaltados.add(cribActual.codigo); guardarSaltados(); cribActual = null; cribRevisar = null; renderCrib() } };
+// Lista de mis «Quizás» y de los saltados, para volver a verlos
+$("#c-mias").onclick = () => {
+  const porCod = c => R.find(r => r.codigo === c);
+  const quizas = doble ? [...mias.values()].filter(d => d.decision === "quiza" && d.fase === "1").map(d => porCod(d.codigo)).filter(Boolean)
+    : R.filter(r => /Quizás en el cribado/.test(r.notas || ""));
+  const salt = [...cribSaltados].map(porCod).filter(Boolean);
+  const item = (r, accion) => `<li><b>${esc(r.codigo)}</b> ${esc(r.titulo)} <span class="meta">· ${esc(r.estado)}</span> ${accion}</li>`;
+  const btnRev = r => `<button type="button" class="btn ghost" data-rev="${esc(r.codigo)}" style="padding:2px 10px">Revisar</button>`;
+  $("#c-btns").hidden = true; $("#c-excl").hidden = true;
+  $("#c-card").innerHTML = `<h3>🤔 Mis «Quizás» (${quizas.length})</h3>
+    <p class="note">${doble ? "Tu decisión queda como Quizás (cuenta como «pasa»). Mientras el artículo siga en Fase 1 la puedes cambiar; cuando las dos decidieron, pasa a texto completo y ahí se resuelve." : "Pasaron a Fase 2 (texto completo) con la nota «Quizás»: ahí se decide si se incluyen."}</p>
+    ${quizas.length ? `<ul class="mias">${quizas.map(r => item(r, doble && r.estadoK === "pend" ? btnRev(r) : `<a href="#" data-ficha="${esc(r.codigo)}">Ver ficha</a>`)).join("")}</ul>` : '<p class="meta">No marcaste ninguno como Quizás.</p>'}
+    <h3>⏭ Saltados (${salt.length})</h3>
+    <p class="note">Siguen pendientes: no se decidió nada. Se recuerdan en este dispositivo y vuelven al final de la cola.</p>
+    ${salt.length ? `<ul class="mias">${salt.map(r => item(r, btnRev(r))).join("")}</ul>` : '<p class="meta">No saltaste ninguno.</p>'}
+    <div class="bar"><button type="button" class="btn" id="c-volver">Volver al cribado</button></div>`;
+  $("#c-volver").onclick = () => renderCrib();
+  $("#c-card").querySelectorAll("[data-rev]").forEach(b => b.onclick = () => {
+    const r = porCod(b.dataset.rev); if (!r) return;
+    if (cribSaltados.delete(r.codigo)) guardarSaltados();
+    $("#c-fase").value = r.estadoK === "ft" ? "ft" : "pend";
+    cribRevisar = r.codigo; cribActual = r; renderCrib();
+  });
+  $("#c-card").querySelectorAll("[data-ficha]").forEach(a => a.onclick = e => { e.preventDefault(); $("#dlg-c").close(); openR(a.dataset.ficha) });
+};
 function deshacer() {
   const h = cribHist.pop(); if (!h) return;
   if (h.doble) {
