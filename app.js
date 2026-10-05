@@ -478,8 +478,11 @@ $("#upd-btn").onclick = () => {
 $("#pm-btn").onclick = async () => {
   const btn = $("#pm-btn"); btn.disabled = true;
   try {
+    const antes = Number($("#b-n").value) || 0;
     const leido = await Importar.traerPubmed($("#b-link").value, t => btn.textContent = t);
-    mostrarImportacion("PubMed (link)", "traídos de PubMed", leido, leido.aviso);
+    // Si ya había un número (del archivo o escrito a mano) y no coincide, algo de la búsqueda no se aplicó igual
+    const distinto = antes && leido.total !== antes ? `PubMed devolvió ${leido.total} y antes tenías ${antes}. Revisa que el link sea el de la búsqueda final, con todos los filtros, y compara con el número que muestra la web de PubMed.` : "";
+    mostrarImportacion("PubMed (link)", "traídos de PubMed", leido, [leido.aviso, distinto].filter(Boolean).join(" "));
   } catch (e) { toast("No pude traer los artículos de PubMed: " + e.message, 7000) }
   finally { btn.disabled = false; btn.textContent = "Traer artículos de PubMed" }
 };

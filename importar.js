@@ -410,9 +410,23 @@
   // Traduce los filtros de la web de PubMed a la sintaxis de búsqueda
   function filtroPubmed(f) {
     let m;
+    const PT = { systematicreview: "systematic review", metaanalysis: "meta-analysis", "meta-analysis": "meta-analysis", review: "review",
+      clinicaltrial: "clinical trial", randomizedcontrolledtrial: "randomized controlled trial", booksdocs: "books and documents",
+      observationalstudy: "observational study", casereports: "case reports", comparativestudy: "comparative study",
+      multicenterstudy: "multicenter study", evaluationstudy: "evaluation study", validationstudy: "validation study",
+      guideline: "guideline", practiceguideline: "practice guideline", letter: "letter", editorial: "editorial", comment: "comment" };
+    const AGE = { newborn: "infant, newborn", infant: "infant", preschoolchild: "child, preschool", child: "child", adolescent: "adolescent",
+      adult: "adult", youngadult: "young adult", middleaged: "middle aged", aged: "aged", "80andover": "aged, 80 and over" };
     if ((m = f.match(/^years\.(\d{4})-(\d{4})$/))) return `("${m[1]}/01/01"[dp] : "${m[2]}/12/31"[dp])`;
+    if ((m = f.match(/^dates\.(\d{4}(?:\/\d{1,2}){0,2})-(\d{4}(?:\/\d{1,2}){0,2}|3000)$/))) return `("${m[1]}"[dp] : "${m[2]}"[dp])`;
+    if ((m = f.match(/^datesearch\.y_(\d+)$/))) return `"last ${m[1]} years"[dp]`;
     if ((m = f.match(/^lang\.(\w+)$/))) return `${m[1]}[la]`;
-    if ((m = f.match(/^pubt\.(\w+)$/))) return `"${m[1].replace(/([a-z])([A-Z])/g, "$1 $2")}"[pt]`;
+    if ((m = f.match(/^pubt\.([\w-]+)$/))) { const k = m[1].toLowerCase(); return `"${PT[k] || m[1].replace(/([a-z])([A-Z])/g, "$1 $2")}"[pt]` }
+    if ((m = f.match(/^age\.([\w]+)$/)) && AGE[m[1].toLowerCase()]) return `"${AGE[m[1].toLowerCase()]}"[mh]`;
+    if (f === "sex.female") return "female[mh]";
+    if (f === "sex.male") return "male[mh]";
+    if (f === "other.excludepreprints") return "NOT preprint[pt]";
+    if (f === "other.medline") return "medline[sb]";
     if (f === "simsearch2.ffrft" || f === "ffrft") return "free full text[sb]";
     if (f === "simsearch1.fha" || f === "fha") return "hasabstract";
     if (f === "simsearch3.fft" || f === "fft") return "full text[sb]";
@@ -428,7 +442,7 @@
     const filtros = p.getAll("filter"), sinTraducir = [];
     const partes = [`(${term})`];
     filtros.forEach(f => { const t = filtroPubmed(f); t ? partes.push(t) : sinTraducir.push(f) });
-    const consulta = partes.join(" AND ");
+    const consulta = partes.reduce((q, t, i) => i === 0 ? t : /^NOT /.test(t) ? `${q} ${t}` : `${q} AND ${t}`, "");
     const eu = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/";
     progreso("Buscando en PubMed…");
     const r = await fetch(`${eu}esearch.fcgi?db=pubmed&retmode=json&retmax=10000&term=${encodeURIComponent(consulta)}`);
