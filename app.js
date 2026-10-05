@@ -32,7 +32,13 @@ const faseNum = () => $("#c-fase").value === "pend" ? 1 : 2;
 const claveDec = (codigo, fase) => codigo + "|" + fase;
 let B = [], R = [], H = [], clave = store.get("clave") || "", editB = null, editR = null, pdfFile = null, cargando = false;
 
-function toast(msg, ms = 2800) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => t.hidden = true, ms) }
+function toast(msg, ms = 2800) {
+  const t = $("#toast");
+  // Con una ventana abierta, el aviso va dentro de ella: si no, queda detrás
+  const dlg = [...document.querySelectorAll("dialog[open]")].pop();
+  (dlg || document.body).appendChild(t);
+  t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => t.hidden = true, ms);
+}
 function fill(sel, opts, first) { sel.innerHTML = (first ? `<option value="">${first}</option>` : "") + opts.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("") }
 fill($("#b-base"), BASES.map(b => [b, b]));
 fill($("#r-estado"), ESTADOS);
@@ -405,6 +411,7 @@ function mostrarImportacion(origen, donde, leido, aviso) {
   if (leido.base && !editB) $("#b-base").value = leido.base;
   res.innerHTML = `<span><b>${refs.length}</b> artículos ${donde}.</span>
     ${aviso ? `<span class="uycheck warn">${esc(aviso)}</span>` : ""}
+    ${!actualizando && !$("#b-cadena").value.trim() ? `<span class="uycheck warn">El archivo trae los artículos pero no la cadena de búsqueda (los RIS, BibTeX y CSV nunca la incluyen). Pega arriba el link de la página de resultados y se completa sola, o cópiala a mano.</span>` : ""}
     <span>${refs.length - dups} nuevos · ${dups} duplicados${dups ? " (ya estaban en el registro o repetidos)" : ""}.</span>
     ${actualizando ? `<span>🔄 ${yaEstaban} ya estaban registrados de la búsqueda anterior y no se vuelven a cargar.</span>` : ""}
     <span>🇺🇾 ${uy} con autores de Uruguay o que mencionan Uruguay.</span>
@@ -515,6 +522,15 @@ $("#feed-btn").onclick = async () => {
   } finally { btn.disabled = false; btn.textContent = "Traer" }
 };
 $("#b-link").addEventListener("input", mostrarPm);
+// Al pegar un link se completa solo, sin tocar «Completar»
+const autoLink = (el, siempre) => setTimeout(() => {
+  const v = el.value.trim(), d = Importar.leerLink(v);
+  if (!d || (!siempre && $("#b-cadena").value.trim())) return;
+  $("#bl-url").value = v; $("#bl-btn").click();
+}, 0);
+$("#bl-url").addEventListener("paste", () => autoLink($("#bl-url"), true));
+$("#bl-url").addEventListener("change", () => { if ($("#bl-url").value.trim() !== $("#b-link").value.trim()) autoLink($("#bl-url"), true) });
+$("#b-link").addEventListener("change", () => autoLink($("#b-link"), false));
 $("#bl-url").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("#bl-btn").click() } });
 // Carga los artículos del archivo en la búsqueda indicada (de a 50 por pedido)
 async function importarA(busqueda, progreso) {
