@@ -15,6 +15,8 @@
 
 A propósito no se agrega un bloque de "salud humana": la literatura uruguaya es acotada y filtrar por desenlace en la búsqueda haría perder estudios. Lo animal, lo recreativo y lo solo ambiental se excluyen en el cribado (están en los criterios del protocolo y se resaltan en rojo al cribar).
 
+Estas cadenas también están en la página, en **Búsquedas → 🔍 Cadenas de búsqueda**, con botones para copiar y abrir la búsqueda (archivo `cadenas.js`: si cambias una cadena, cámbiala en los dos lados).
+
 Registra cada búsqueda en la página (pestaña **Búsquedas**): pega el link de los resultados y toca **Completar**.
 
 ---

@@ -248,6 +248,14 @@ svg.graf{width:100%;height:auto;display:block}
 .graf .grid{stroke:var(--line);stroke-width:1} .graf .base{stroke:var(--muted);stroke-width:1}
 .graf .eje{font:600 11px var(--f-body);fill:var(--muted)} .graf .val{font:800 11px var(--f-body);fill:var(--ink)}
 .graf .bar{fill:var(--accent)} .graf .hit{fill:transparent} .graf .barra:hover .bar{fill:var(--lav)}
+details.cadenas{background:var(--surface);border:2px solid var(--lav);border-radius:16px;padding:8px 12px}
+details.cadenas>summary{cursor:pointer;font-weight:800;color:var(--accent)}
+.cad-grupo{font-family:var(--f-display);font-weight:600;font-size:1rem;margin:14px 0 6px;color:var(--ink)}
+details.cad{border:1px dashed var(--line);border-radius:10px;padding:6px 10px;margin:6px 0}
+details.cad summary{cursor:pointer;font-weight:700}
+.cad-pre{white-space:pre-wrap;overflow-wrap:anywhere;font:.8rem/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;margin:6px 0;max-height:320px;overflow:auto}
+.cad-btns{display:flex;flex-wrap:wrap;gap:8px} .cad-btns a.btn{text-decoration:none}
+.cad-lineas{display:flex;flex-direction:column;gap:4px;margin-top:8px;font-size:.9rem}
 details.ayuda{background:color-mix(in srgb, var(--yellow) 55%, var(--surface));border:2px solid var(--yellow);border-radius:16px;padding:8px 12px}
 details.ayuda summary{cursor:pointer;font-weight:800;color:var(--ink)} details.ayuda div{margin-top:6px;line-height:1.55;max-width:75ch}
 .guia{display:grid;gap:10px}
@@ -334,6 +342,10 @@ table.chk input{min-width:70px}
 
   <section class="view" id="v-busquedas" hidden>
     <details class="ayuda"><summary>📖 ¿Qué es esto?</summary><div>Cada vez que buscas en una base de datos, se registra acá con la fecha, la cadena exacta, los filtros y cuántos resultados salieron. Se registran <b>todas</b>, aunque no salga nada útil: así otra persona puede repetir la búsqueda y llegar a lo mismo. Pega el link de los resultados y toca «Completar»; si adjuntas el archivo exportado, se cargan todos los artículos.</div></details>
+    <details class="cadenas" id="cadenas-box"><summary>🔍 Cadenas de búsqueda (MeSH, DeCS y demás) para copiar</summary>
+      <p class="note">Las del protocolo, listas para pegar en cada base. «Abrir en…» lanza la búsqueda directamente. Después vuelve acá y regístrala con «+ Nueva búsqueda».</p>
+      <div class="cad-cuerpo"></div>
+    </details>
     <div class="bar"><h2 class="grow">Búsquedas realizadas</h2><button class="btn admin-only" id="add-b">+ Nueva búsqueda</button></div>
     <div class="list" id="list-b"><div class="empty">Cargando búsquedas…</div></div>
   </section>
@@ -605,14 +617,15 @@ table.chk input{min-width:70px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="config.js?v=19"></script>
-<script src="autocompletar.js?v=19"></script>
-<script src="importar.js?v=19"></script>
-<script src="prisma.js?v=19"></script>
+<script src="config.js?v=20"></script>
+<script src="autocompletar.js?v=20"></script>
+<script src="importar.js?v=20"></script>
+<script src="prisma.js?v=20"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
-<script src="prioridad.js?v=19"></script>
-<script src="app.js?v=19"></script>
-<script src="estudios.js?v=19"></script>
-<script src="extras.js?v=19"></script>
+<script src="prioridad.js?v=20"></script>
+<script src="app.js?v=20"></script>
+<script src="estudios.js?v=20"></script>
+<script src="extras.js?v=20"></script>
+<script src="cadenas.js?v=20"></script>
 </body>
 </html>
