@@ -136,6 +136,7 @@ function setModo() {
   $("#mode").textContent = on ? "✏️ " + quien : "🔒 Solo lectura";
   $("#mode").classList.toggle("on", on);
   $("#crib-btn").hidden = !on || (!rol.admin && rol.revisor === "Revisor 3");
+  $("#conf-btn").hidden = !on || PROT.modoCribado !== "doble";
   // Lo que depende de quién entró se vuelve a dibujar
   renderExtra();
 }
@@ -286,6 +287,7 @@ function acuerdoHtml() {
 }
 function renderAll() {
   renderB(); renderR(); renderP(); renderExtra();
+  $("#conf-btn").hidden = !clave || PROT.modoCribado !== "doble";
   fill($("#r-busqueda"), B.map(b => [b.id, `${b.base} · ${fdate(b.fecha)}`]), "Sin asociar");
   const fb = $("#f-busq").value;
   fill($("#f-busq"), B.map(b => [b.id, `${b.base} · ${fdate(b.fecha)}`]), "Todas las búsquedas");
@@ -650,7 +652,7 @@ function renderCrib() {
   const hechas = [...mias.keys()].filter(k => k.endsWith("|" + faseNum())).length;
   const otro = doble && otroAvance && otroAvance.revisor ? ` · ${otroAvance.revisor} lleva ${otroAvance["fase" + faseNum()]}` : "";
   $("#c-prog").textContent = (total ? `Te quedan ${total}${saltFase ? ` (${saltFase} saltado${saltFase === 1 ? "" : "s"})` : ""}` : "") + (doble ? ` · Llevas ${hechas}${otro}` : "");
-  $("#c-quien").textContent = doble ? `Cribando como ${rol.revisor} · doble ciego: no ves las decisiones del otro revisor` : "Cribado directo (administración): cada decisión cambia el estado enseguida";
+  $("#c-quien").textContent = doble ? `Cribando como ${rol.revisor} · doble ciego: no ves las decisiones del otro revisor` : "Cribado de una sola revisora: cada decisión cambia el estado enseguida (el doble ciego se activa en Protocolo → Modo de cribado)";
   $("#c-si").textContent = fase === "pend" ? "✓ Pasa" : "✓ Incluir";
   $("#c-dup").hidden = fase !== "pend"; $("#c-quiza").hidden = fase !== "pend"; $("#c-nr").hidden = fase === "pend";
   // Cuántos hay en cada fase, a la vista en el selector
@@ -685,7 +687,12 @@ function renderCrib() {
 }
 async function abrirCrib() {
   cribHist = []; cribActual = null; cribRevisar = null;
-  doble = !!(rol && (rol.revisor === "Revisor 1" || rol.revisor === "Revisor 2"));
+  // Mientras el protocolo diga «una sola revisora», el cribado es directo y lo hace administración
+  doble = PROT.modoCribado === "doble" && !!(rol && (rol.revisor === "Revisor 1" || rol.revisor === "Revisor 2"));
+  if (!doble && !(rol && rol.admin)) {
+    toast(PROT.modoCribado === "doble" ? "En doble ciego criban el Revisor 1 y el Revisor 2." : "Ahora el cribado es de una sola revisora: entra con la clave de administración. (Se cambia en Protocolo → Modo de cribado.)", 8000);
+    return;
+  }
   mias = new Map(); otroAvance = null;
   if (doble) {
     const btn = $("#crib-btn"); btn.disabled = true; btn.textContent = "Cargando…";
