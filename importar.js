@@ -94,7 +94,7 @@
         autores: [...new Set(valores(r, CAMPOS.autores))].join("; "),
         anio: (valores(r, CAMPOS.anio).join(" ").match(/(?:^|\D)((?:19|20)\d{2})/) || ["", ""])[1],
         revista: valores(r, CAMPOS.revista)[0] || "",
-        doi, link, resumen: enCastellano(valores(r, CAMPOS.resumen)) || "",
+        doi, link, resumen: enCastellano(valores(r, CAMPOS.resumen)) || "", id,
         db: valores(r, CAMPOS.db).join(" "), afiliaciones: valores(r, CAMPOS.afil).join("; ").replace(/\^[a-z]/g, " "),
       };
     });

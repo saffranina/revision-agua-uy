@@ -16,6 +16,14 @@
     if (base === "bvs") return C.bvs[grupo];
     if (base === "epmc") return `${L.agua}\nAND ${exp}\nAND (${L.uruguay.slice(1, -1)} OR AFF:"Uruguay")`;
     if (base === "openalex") return sinComodin(`${L.agua}\nAND ${exp}\nAND ${L.uruguay}`);
+    // Colección SciELO Uruguay: no hace falta el bloque de Uruguay
+    if (base === "scielo") return grupo === "principal"
+      ? `("agua potable" OR "agua de consumo" OR "agua de bebida" OR "agua corriente" OR "drinking water" OR "tap water" OR "água potável")
+AND (cianobacteria* OR cianotoxina* OR microcistina* OR cyanobacteri* OR microcystin* OR plaguicida* OR agrotoxico* OR agrotóxico*
+ OR agroquimico* OR agroquímico* OR pesticida* OR pesticide* OR herbicida* OR glifosato OR glyphosate OR atrazina OR atrazine)`
+      : `("agua potable" OR "agua de consumo" OR "agua de bebida" OR "agua corriente" OR "drinking water" OR "tap water" OR "água potável")
+AND (trihalometano* OR trihalomethane* OR cloroformo OR sodio OR sodium OR cloruro* OR chloride* OR salinidad OR "crisis hídrica"
+ OR nitrato* OR nitrate* OR arsénico OR arsenic OR plomo OR "metales pesados" OR "heavy metals" OR microplástico* OR microplastic*)`;
     if (base === "colibri") return grupo === "principal"
       ? "agua AND (cianobacterias OR cianotoxinas OR microcistinas OR agrotóxicos OR plaguicidas OR agroquímicos OR glifosato OR atrazina)"
       : "agua AND (trihalometanos OR cloroformo OR sodio OR cloruros OR nitratos OR arsénico OR plomo OR \"metales pesados\" OR microplásticos)";
@@ -30,15 +38,17 @@
       web: c => "https://europepmc.org/search?query=" + encodeURIComponent(una(c)) },
     { id: "openalex", nombre: "OpenAlex", nota: "Índice abierto muy amplio (reemplaza en parte a Scopus y Google Scholar). Busca en título y resumen.", motor: false,
       web: c => "https://openalex.org/works?filter=" + encodeURIComponent("title_and_abstract.search:" + una(c).replace(/,/g, " ")) },
+    { id: "scielo", nombre: "SciELO", nota: "Colección SciELO Uruguay (revistas uruguayas en acceso abierto). La trae el motor.", motor: true,
+      web: c => "https://search.scielo.org/?lang=es&q=" + encodeURIComponent(una(c)) + "&filter%5Bin%5D%5B%5D=ury" },
     { id: "colibri", nombre: "Colibri (UdelaR)", nota: "Repositorio de la Universidad de la República (tesis e informes). La trae el motor.", motor: true,
       web: c => "https://www.colibri.udelar.edu.uy/jspui/simple-search?query=" + encodeURIComponent(c) },
   ];
 
   /* ---------- Cada base ---------- */
   async function traer(base, c, avance) {
-    if (base === "pubmed") return Importar.traerPubmed(BASES_AUTO[0].web(c), avance);
+    if (base === "pubmed") return Importar.traerPubmed(BASES_AUTO.find(x => x.id === "pubmed").web(c), avance);
     if (base === "bvs") {
-      const u = new URL(BASES_AUTO[1].web(c)); u.searchParams.set("output", "xml"); u.searchParams.set("count", "1000"); u.searchParams.set("from", "1");
+      const u = new URL(BASES_AUTO.find(x => x.id === "bvs").web(c)); u.searchParams.set("output", "xml"); u.searchParams.set("count", "1000"); u.searchParams.set("from", "1");
       avance("Buscando en la BVS…");
       const r = await api("traerUrl", { url: u.href });
       let leido;
@@ -51,8 +61,23 @@
     }
     if (base === "epmc") return europePmc(c, avance);
     if (base === "openalex") return openAlex(c, avance);
+    if (base === "scielo") {
+      const b = BASES_AUTO.find(x => x.id === "scielo");
+      const u = new URL(b.web(c)); u.searchParams.set("output", "xml"); u.searchParams.set("count", "1000"); u.searchParams.set("from", "1");
+      avance("Buscando en SciELO Uruguay…");
+      const r = await api("traerUrl", { url: u.href });
+      let leido;
+      try { leido = Importar.leer(r.texto || "") }
+      catch (e) {
+        const muestra = String(r.texto || "").replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 140);
+        throw new Error(`SciELO no devolvió el XML esperado (código ${r.status}${muestra ? ": «" + muestra + "»" : ", respuesta vacía"}). Usa «Ver en la web», exporta en RIS y adjúntalo en + Nueva búsqueda`);
+      }
+      // El enlace del artículo en scielo.edu.uy sale del identificador (S1688-…-ury)
+      leido.refs.forEach(x => { if (!x.doi && x.id && /pesquisa\.bvsalud/.test(x.link || "")) x.link = "https://www.scielo.edu.uy/scielo.php?script=sci_arttext&pid=" + x.id.replace(/-[a-z]{3}$/, "") });
+      return { refs: leido.refs, total: leido.total ?? leido.refs.length };
+    }
     if (base === "colibri") {
-      const hilo = Importar.linkHiloColibri(BASES_AUTO[4].web(c));
+      const hilo = Importar.linkHiloColibri(BASES_AUTO.find(x => x.id === "colibri").web(c));
       const leido = await Importar.traerHilo(hilo, u => api("traerUrl", { url: u }), avance);
       return { refs: leido.refs, total: leido.total ?? leido.refs.length };
     }
@@ -164,7 +189,7 @@
     try {
       const hoy = new Date().toLocaleDateString("sv");
       x.idBusqueda = x.idBusqueda || "B" + Math.random().toString(16).slice(2, 10);
-      const j = await api("guardarBusqueda", { id: x.idBusqueda, base: b.nombre, fecha: hoy, cadena: x.cadena.trim(), filtros: id === "bvs" ? "Base de datos: LILACS" : "",
+      const j = await api("guardarBusqueda", { id: x.idBusqueda, base: b.nombre, fecha: hoy, cadena: x.cadena.trim(), filtros: id === "bvs" ? "Base de datos: LILACS" : id === "scielo" ? "Colección: SciELO Uruguay" : "",
         n: x.total, campos: "", link: x.web, metodo: Prisma.OTROS_POR_DEFECTO.includes(b.nombre) ? "otros" : "bases",
         notas: `Búsqueda automática (beta) desde la página, interés ${x.grupo}.` + (soloUy ? " Se cargaron solo los relacionados con Uruguay." : "") + (x.refs.length < x.total ? ` Se trajeron ${x.refs.length} de ${x.total}.` : "") });
       const lista = marcados.map(r => ({ titulo: r.titulo, autores: r.autores, anio: r.anio, revista: r.revista, doi: r.doi, link: r.link, resumen: r.resumen,
