@@ -285,7 +285,7 @@ function openB(id) {
   $("#dlg-b-title").textContent = id ? "Búsqueda" : "Nueva búsqueda";
   $("#b-base").value = d.base || BASES[0]; $("#b-fecha").value = d.fecha || new Date().toLocaleDateString("sv");
   $("#b-cadena").value = d.cadena || ""; $("#b-filtros").value = d.filtros || ""; $("#b-n").value = d.n ?? "";
-  $("#b-metodo").value = Prisma.metodoDe(id ? d : { base: $("#b-base").value });
+  $("#b-metodo").value = Prisma.metodoDe(id ? d : { base: $("#b-base").value }); $("#b-metodo-box").hidden = true; syncMetodo();
   $("#b-campos").value = d.campos || ""; $("#b-notas").value = d.notas || ""; $("#b-del").hidden = !id || !clave || !rol.admin;
   const hist = id ? [{ fecha: d.creado, accion: "Registrada" }, ...(d.actualizado && d.actualizado !== d.creado ? [{ fecha: d.actualizado, accion: "Última edición" }] : [])] : [];
   $("#b-hist").innerHTML = histHtml(hist); $("#b-hist").hidden = !id;
@@ -437,7 +437,7 @@ $("#cit-btn").onclick = async () => {
   try {
     const leido = await Importar.rastreoCitas(inc, t => btn.textContent = t);
     leido.soloUy = true;
-    $("#b-base").value = "Otra"; $("#b-metodo").value = "otros";
+    $("#b-base").value = "Otra"; $("#b-metodo").value = "otros"; syncMetodo();
     $("#b-cadena").value = `Rastreo de citas hacia atrás (referencias citadas) y hacia adelante (artículos que los citan) de ${leido.estudios} estudios incluidos, con OpenAlex.`;
     $("#b-campos").value = "No aplica"; $("#b-filtros").value = "Ninguno";
     mostrarImportacion("Rastreo de citas (OpenAlex)", "encontrados en el rastreo de citas", leido,
@@ -452,7 +452,7 @@ $("#upd-btn").onclick = () => {
   $("#dlg-b").close(); openB(null);
   actualizando = b.id;
   $("#dlg-b-title").textContent = "Actualizar búsqueda";
-  $("#b-base").value = b.base; $("#b-metodo").value = Prisma.metodoDe(b);
+  $("#b-base").value = b.base; $("#b-metodo").value = Prisma.metodoDe(b); syncMetodo();
   $("#b-cadena").value = b.cadena || ""; $("#b-filtros").value = b.filtros || ""; $("#b-campos").value = b.campos || "";
   $("#b-link").value = b.link || ""; mostrarPm();
   $("#b-notas").value = `Actualización de la búsqueda del ${fdate(b.fecha)} (${b.id}). Solo se cargan los registros nuevos.`;
@@ -470,7 +470,11 @@ $("#pm-btn").onclick = async () => {
   } catch (e) { toast("No pude traer los artículos de PubMed: " + e.message, 7000) }
   finally { btn.disabled = false; btn.textContent = "Traer artículos de PubMed" }
 };
-$("#b-base").addEventListener("change", () => { $("#b-metodo").value = Prisma.OTROS_POR_DEFECTO.includes($("#b-base").value) ? "otros" : "bases" });
+$("#b-base").addEventListener("change", () => { $("#b-metodo").value = Prisma.OTROS_POR_DEFECTO.includes($("#b-base").value) ? "otros" : "bases"; syncMetodo() });
+// PRISMA separa lo buscado en bases de datos de lo encontrado por otros métodos (repositorios, Google Scholar, citas…)
+function syncMetodo() { $("#b-metodo-txt").textContent = $("#b-metodo").value === "otros" ? "Otros métodos" : "Bases de datos" }
+$("#b-metodo").addEventListener("change", syncMetodo);
+$("#b-metodo-cambiar").onclick = () => { $("#b-metodo-box").hidden = false; $("#b-metodo").focus() };
 $("#bl-btn").onclick = () => {
   const d = Importar.leerLink($("#bl-url").value);
   if (!d) { toast("Eso no parece un link. Copia la dirección completa de la barra del navegador."); return }
