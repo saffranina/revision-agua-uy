@@ -416,10 +416,13 @@ function mostrarImportacion(origen, donde, leido, aviso) {
   // La BVS exporta por defecto solo la página que se está viendo (20)
   if (leido.sinTitulo) aviso = [aviso, `${leido.sinTitulo} registro${leido.sinTitulo === 1 ? "" : "s"} del archivo no ${leido.sinTitulo === 1 ? "tiene" : "tienen"} título y no se ${leido.sinTitulo === 1 ? "carga" : "cargan"}: búscalo${leido.sinTitulo === 1 ? "" : "s"} en la base y agrégalo${leido.sinTitulo === 1 ? "" : "s"} a mano.`].filter(Boolean).join(" ");
   if (leido.formato === "bvs" && leido.total > leido.refs.length) aviso = [aviso, `El archivo tiene ${leido.refs.length} de los ${leido.total} resultados de la búsqueda. En la BVS, al exportar, elige exportar todos los resultados (no solo esta página) y vuelve a adjuntarlo.`].filter(Boolean).join(" ");
-  res.innerHTML = `<span><b>${refs.length}</b> artículos ${donde}.</span>
+  const dupArchivo = refs.filter(r => /^fila /.test(r.duplicadoDe || "")).length, dupRegistro = dups - dupArchivo;
+  const dupTxt = [dupArchivo ? `${dupArchivo} repetido${dupArchivo === 1 ? "" : "s"} dentro del mismo archivo` : "", dupRegistro ? `${dupRegistro} que ya ${dupRegistro === 1 ? "estaba" : "estaban"} en el registro` : ""].filter(Boolean).join(" y ");
+  res.innerHTML = `<span class="note">👀 Vista previa: todavía no se guardó nada. Se guarda solo cuando tocas «${editB ? "Importar" : "Guardar"}».</span>
+    <span><b>${refs.length}</b> artículos ${donde}.</span>
     ${aviso ? `<span class="uycheck warn">${esc(aviso)}</span>` : ""}
     ${!actualizando && !$("#b-cadena").value.trim() ? `<span class="uycheck warn">El archivo trae los artículos pero no la cadena de búsqueda (los RIS, BibTeX y CSV nunca la incluyen). Pega arriba el link de la página de resultados y se completa sola, o cópiala a mano.</span>` : ""}
-    <span>${refs.length - dups} nuevos · ${dups} duplicados${dups ? " (ya estaban en el registro o repetidos)" : ""}.</span>
+    <span>${refs.length - dups} nuevos${dups ? ` · ${dups} duplicado${dups === 1 ? "" : "s"} (${dupTxt})` : ""}.</span>
     ${actualizando ? `<span>🔄 ${yaEstaban} ya estaban registrados de la búsqueda anterior y no se vuelven a cargar.</span>` : ""}
     <span>🇺🇾 ${uy} con autores de Uruguay o que mencionan Uruguay.</span>
     ${leido.soloUy ? `<label><input type="checkbox" id="imp-uy" checked> Cargar solo los ${uy} relacionados con Uruguay</label>` : ""}
