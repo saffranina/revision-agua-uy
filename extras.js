@@ -188,12 +188,18 @@ $("#dl-paquete").onclick = async () => {
     const csv = filas => "﻿" + (filas.length ? [Object.keys(filas[0]), ...filas.map(Object.values)].map(f => f.map(cel).join(",")).join("\n") : "");
     let priv = { decisiones: [], comentarios: [] };
     if (clave && rol && rol.admin) { try { priv = await api("exportarTodo", {}) } catch (e) { } }
+    // Si quien descarga también criba (Revisor 1 o 2) y el cribado no terminó, no ve las decisiones de la otra persona
+    const enCribado = R.some(r => r.estadoK === "pend" || r.estadoK === "ft");
+    const otro = rol && rol.revisor === "Revisor 1" ? "Revisor 2" : rol && rol.revisor === "Revisor 2" ? "Revisor 1" : "";
+    let ciego = false;
+    if (otro && enCribado) { priv.decisiones = priv.decisiones.filter(d => d.revisor !== otro); ciego = true }
     const t = Prisma.textoMetodos(B, R, ACU, PROT, EXT, SES);
     zip.file("LEEME.txt", `Paquete de reproducibilidad\nRevisión sistemática: ${PROT.titulo || "agua de consumo humano y salud en Uruguay"}\nGenerado el ${new Date().toLocaleString("es-UY")} desde ${location.href}\n\nContenido:\n- protocolo.txt: pregunta, criterios y registro\n- busquedas.csv y estrategias-de-busqueda.doc: todas las búsquedas (PRISMA-S)\n- referencias.csv: todos los registros con su estado y fechas\n- historial.csv: cada cambio, con fecha y hora\n- decisiones.csv: decisiones de cada revisor en el cribado doble ciego\n- extraccion.csv, riesgo-de-sesgo.csv, grade.csv: datos de los estudios incluidos\n- diagrama-prisma-2020.svg: diagrama de flujo\n- metodos-y-resultados.txt: texto generado\n- checklist-prisma-2020.csv\n`);
     zip.file("protocolo.txt", CAMPOS_PROT.map(([k, l]) => `${l}:\n${PROT[k] || "—"}\n`).join("\n"));
     zip.file("busquedas.csv", csv(B)); zip.file("estrategias-de-busqueda.doc", Prisma.tablaWord(B));
     zip.file("referencias.csv", csv(R.map(({ estadoK, ...r }) => r))); zip.file("historial.csv", csv(H));
     if (priv.decisiones.length) zip.file("decisiones.csv", csv(priv.decisiones.map(({ fila, ...d }) => d)));
+    if (ciego) zip.file("decisiones-LEEME.txt", `Para no romper el doble ciego, decisiones.csv tiene solo las decisiones de ${rol.revisor} y las resoluciones de conflictos: el cribado todavía no terminó. Cuando no queden artículos pendientes, el paquete incluye las de ${otro}.\n`);
     if (priv.comentarios.length) zip.file("comentarios.csv", csv(priv.comentarios));
     zip.file("extraccion.csv", csv(EXT)); zip.file("riesgo-de-sesgo.csv", csv(SES)); zip.file("grade.csv", csv(GRADE));
     zip.file("diagrama-prisma-2020.svg", Prisma.diagrama(B, R));
