@@ -663,6 +663,7 @@ function renderCrib() {
   if (!cribActual) {
     $("#c-btns").hidden = true;
     card.innerHTML = `<div class="empty">${saltFase ? `No quedan más, salvo ${saltFase} que saltaste. <button type="button" class="btn ghost" id="c-reset">Volver a ver los saltados</button>`
+      : doble && fase === "ft" && !nFase("ft") ? "Todavía no hay artículos en la Fase 2."
       : doble ? `¡Terminaste esta fase! 🎉 Cuando ${otroAvance && otroAvance.revisor ? otroAvance.revisor : "el otro revisor"} también termine, los desacuerdos aparecen en «⚖️ Conflictos».`
       : fase === "pend" ? "¡No quedan artículos pendientes de cribado! 🎉" : "No hay artículos esperando la lectura a texto completo."}
       ${fase === "ft" && esperando ? `<p class="note">Pasaste ${esperando} artículo${esperando === 1 ? "" : "s"} en la Fase 1 que ${esperando === 1 ? "espera" : "esperan"} a que ${otroAvance && otroAvance.revisor ? otroAvance.revisor : "la otra revisora"} también decida. Llegan a la Fase 2 cuando las dos los pasaron (o se resolvió el conflicto).</p>` : ""}</div>`;
