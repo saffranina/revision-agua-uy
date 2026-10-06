@@ -86,8 +86,14 @@ AND (trihalometano* OR trihalomethane* OR cloroformo OR sodio OR sodium OR cloru
       return { refs: leido.refs, total: leido.total ?? leido.refs.length };
     }
     if (base === "colibri") {
+      // Colibri es DSpace: primero el OpenSearch de la versión clásica (jspui) y, si no responde, el de DSpace 7
       const hilo = Importar.linkHiloColibri(BASES_AUTO.find(x => x.id === "colibri").web(c));
-      const leido = await Importar.traerHilo(hilo, u => api("traerUrl", { url: u }), avance);
+      const nuevo = hilo.replace(/\/jspui\/open-search\/\?/, "/server/opensearch/search?");
+      let leido, error;
+      for (const u of [hilo, nuevo]) {
+        try { leido = await Importar.traerHilo(u, x => api("traerUrl", { url: x }), avance); break } catch (e) { error = e }
+      }
+      if (!leido) throw new Error(`Colibri no respondió a la búsqueda (${error ? error.message : "sin respuesta"}). Usa «Ver en la web» y, desde la búsqueda de Colibri, pega el link en + Nueva búsqueda → «Traer desde un hilo de sindicación»`);
       return { refs: leido.refs, total: leido.total ?? leido.refs.length };
     }
   }
