@@ -12,11 +12,15 @@
   // Cadena de cada base para el grupo elegido (principal o secundario)
   function cadena(base, grupo) {
     const C = window.Cadenas, L = C.libre, exp = L[grupo];
+    // Foco agua de canilla: otro bloque de agua (punto de consumo) y todos los contaminantes
+    const agua = grupo === "canilla" ? L.aguaCanilla : L.agua;
     if (base === "pubmed") return C.pubmed[grupo];
     if (base === "bvs") return C.bvs[grupo];
-    if (base === "epmc") return `${L.agua}\nAND ${exp}\nAND (${L.uruguay.slice(1, -1)} OR AFF:"Uruguay")`;
-    if (base === "openalex") return sinComodin(`${L.agua}\nAND ${exp}\nAND ${L.uruguay}`);
+    if (base === "epmc") return `${agua}\nAND ${exp}\nAND (${L.uruguay.slice(1, -1)} OR AFF:"Uruguay")`;
+    if (base === "openalex") return sinComodin(`${agua}\nAND ${exp}\nAND ${L.uruguay}`);
     // Colección SciELO Uruguay: no hace falta el bloque de Uruguay
+    if (base === "scielo" && grupo === "canilla") return C.scieloCanilla;
+    if (base === "colibri" && grupo === "canilla") return '("agua de canilla" OR "agua potable" OR "agua de pozo" OR "agua de la red" OR "agua domiciliaria") AND (cianobacterias OR microcistinas OR agrotóxicos OR plaguicidas OR glifosato OR trihalometanos OR sodio OR nitratos OR arsénico OR plomo OR microplásticos)';
     if (base === "scielo") return grupo === "principal"
       ? `("agua potable" OR "agua de consumo" OR "agua de bebida" OR "agua corriente" OR "drinking water" OR "tap water" OR "água potável")
 AND (cianobacteria* OR cianotoxina* OR microcistina* OR cyanobacteri* OR microcystin* OR plaguicida* OR agrotoxico* OR agrotóxico*
@@ -191,7 +195,7 @@ AND (trihalometano* OR trihalomethane* OR cloroformo OR sodio OR sodium OR cloru
       x.idBusqueda = x.idBusqueda || "B" + Math.random().toString(16).slice(2, 10);
       const j = await api("guardarBusqueda", { id: x.idBusqueda, base: b.nombre, fecha: hoy, cadena: x.cadena.trim(), filtros: id === "bvs" ? "Base de datos: LILACS" : id === "scielo" ? "Colección: SciELO Uruguay" : "",
         n: x.total, campos: "", link: x.web, metodo: Prisma.OTROS_POR_DEFECTO.includes(b.nombre) ? "otros" : "bases",
-        notas: `Búsqueda automática (beta) desde la página, interés ${x.grupo}.` + (soloUy ? " Se cargaron solo los relacionados con Uruguay." : "") + (x.refs.length < x.total ? ` Se trajeron ${x.refs.length} de ${x.total}.` : "") });
+        notas: `Búsqueda automática (beta) desde la página, ${{ canilla: "foco agua de canilla (punto de consumo), todos los contaminantes", principal: "interés principal", secundario: "interés secundario" }[x.grupo] || x.grupo}.` + (soloUy ? " Se cargaron solo los relacionados con Uruguay." : "") + (x.refs.length < x.total ? ` Se trajeron ${x.refs.length} de ${x.total}.` : "") });
       const lista = marcados.map(r => ({ titulo: r.titulo, autores: r.autores, anio: r.anio, revista: r.revista, doi: r.doi, link: r.link, resumen: r.resumen,
         uruguay: r.uruguay, estado: r.duplicadoDe ? "dup" : "pend", notas: r.duplicadoDe ? "Duplicado de " + r.duplicadoDe : "" }));
       for (let i = 0; i < lista.length; i += 50) {

@@ -42,6 +42,26 @@
  OR mh:Arsénico OR mh:Plomo OR tw:arsénico OR tw:plomo OR tw:"metales pesados" OR tw:microplástico*)`;
   const EXP_LIBRE = `(cyanobacteri* OR cyanotoxin* OR microcystin* OR saxitoxin* OR cylindrospermopsin*
  OR "algal bloom*" OR pesticide* OR herbicide* OR agrochemical* OR glyphosate OR atrazine OR chlorpyrifos)`;
+  // Foco: el agua que se bebe en el punto de consumo (canilla, pozo, hogar). Todos los contaminantes juntos.
+  const CANILLA_PM = `("Drinking Water"[Mesh] OR "tap water"[tiab] OR "faucet water"[tiab] OR "household water"[tiab]
+ OR "household drinking water"[tiab] OR "point-of-use"[tiab] OR "point of use"[tiab] OR "point-of-consumption"[tiab]
+ OR "well water"[tiab] OR "private well*"[tiab] OR "domestic well*"[tiab] OR "piped water"[tiab] OR "municipal water"[tiab]
+ OR "drinking water"[tiab] OR "agua de canilla"[tiab] OR "agua del grifo"[tiab] OR "agua de la red"[tiab]
+ OR "agua de pozo"[tiab] OR "agua potable"[tiab] OR "agua de consumo"[tiab] OR "água da torneira"[tiab])`;
+  const CANILLA_BVS = `(mh:"Agua Potable" OR tw:"agua de canilla" OR tw:"agua del grifo" OR tw:"agua de la red" OR tw:"agua de pozo"
+ OR tw:"agua domiciliaria" OR tw:"agua de consumo" OR tw:"agua potable" OR tw:"agua de bebida" OR tw:aljibe*
+ OR tw:"tap water" OR tw:"household water" OR tw:"point-of-use" OR tw:"well water" OR tw:"drinking water" OR tw:"água da torneira")`;
+  const CANILLA_LIBRE = `("tap water" OR "faucet water" OR "household water" OR "household drinking water" OR "point-of-use" OR "point of use"
+ OR "well water" OR "private well*" OR "piped water" OR "municipal water" OR "drinking water"
+ OR "agua de canilla" OR "agua del grifo" OR "agua potable" OR "agua de pozo")`;
+  const sinParentesis = b => b.trim().replace(/^\(/, "").replace(/\)$/, "");
+  const TODO_PM = `(${sinParentesis(EXP_PM)}\n OR ${sinParentesis(SEC_PM)})`;
+  const TODO_BVS = `(${sinParentesis(EXP_BVS)}\n OR ${sinParentesis(SEC_BVS)})`;
+  const TODO_LIBRE = `(${sinParentesis(EXP_LIBRE)}\n OR ${sinParentesis(SEC_LIBRE)})`;
+  const CANILLA_SCIELO = `("agua de canilla" OR "agua del grifo" OR "agua de la red" OR "agua de pozo" OR "agua potable" OR "agua de consumo"
+ OR "tap water" OR "household water" OR "point-of-use" OR "well water" OR "drinking water" OR "água da torneira")
+AND (cianobacteria* OR cianotoxina* OR microcistina* OR cyanobacteri* OR plaguicida* OR agrotoxico* OR agroquimico* OR pesticida*
+ OR glifosato OR atrazina OR trihalometano* OR sodio OR cloruro* OR nitrato* OR arsénico OR plomo OR microplástico*)`;
   const una = s => s.replace(/\s+/g, " ").trim();
   const pubmed = s => "https://pubmed.ncbi.nlm.nih.gov/?term=" + encodeURIComponent(una(s));
   const bvs = s => "https://pesquisa.bvsalud.org/portal/?lang=es&q=" + encodeURIComponent(una(s));
@@ -103,13 +123,27 @@ AND (TITLE-ABS-KEY${URU_LIBRE} OR AFFILCOUNTRY(uruguay))` },
 AND TS=${SEC_LIBRE}
 AND (TS=${URU_LIBRE} OR CU=Uruguay)` },
     ] },
+    { titulo: "Foco: agua de canilla (la que se bebe en el punto de consumo), todos los contaminantes", cadenas: [
+      { base: "PubMed / MEDLINE", abrir: pubmed, nota: "Agua en el punto de consumo (canilla, hogar, pozo) con todos los contaminantes de interés, principal y secundario. Regístrala como búsqueda aparte (en notas: «foco agua de canilla»).",
+        cadena: `${CANILLA_PM}\nAND\n${TODO_PM}\nAND\n${URU_PM}` },
+      { base: "BVS / LILACS", abrir: bvs, nota: "Filtra LILACS y exporta en RIS.", cadena: `${CANILLA_BVS}\nAND\n${TODO_BVS}\nAND\n${URU_BVS}` },
+      { base: "SciELO", abrir: scielo, nota: "Todas las colecciones (o la colección SciELO Uruguay sin el último bloque). Exporta en RIS.",
+        cadena: `${CANILLA_SCIELO}\nAND (uruguay OR montevideo)` },
+      { base: "Scopus (vía Timbó)", cadena: `TITLE-ABS-KEY${CANILLA_LIBRE}\nAND TITLE-ABS-KEY${TODO_LIBRE}\nAND (TITLE-ABS-KEY${URU_LIBRE} OR AFFILCOUNTRY(uruguay))` },
+      { base: "Web of Science (vía Timbó)", cadena: `TS=${CANILLA_LIBRE}\nAND TS=${TODO_LIBRE}\nAND (TS=${URU_LIBRE} OR CU=Uruguay)` },
+      { base: "Google Scholar (complementaria)", abrir: scholar, nota: "Una línea por vez; revisa las primeras 200 o 300 entradas.", porLinea: true,
+        cadena: `"agua de canilla" OR "agua del grifo" Uruguay salud
+"agua de pozo" Uruguay (nitratos OR plaguicidas OR arsénico) salud
+"tap water" OR "household water" OR "point-of-use" Uruguay health` },
+    ] },
   ];
 
   // Bloques para la búsqueda automática (buscador.js)
   window.Cadenas = {
-    pubmed: { principal: `${AGUA_PM}\nAND\n${EXP_PM}\nAND\n${URU_PM}`, secundario: `${AGUA_PM}\nAND\n${SEC_PM}\nAND\n${URU_PM}` },
-    bvs: { principal: `${AGUA_BVS}\nAND\n${EXP_BVS}\nAND\n${URU_BVS}`, secundario: `${AGUA_BVS}\nAND\n${SEC_BVS}\nAND\n${URU_BVS}` },
-    libre: { agua: AGUA_LIBRE, uruguay: URU_LIBRE, principal: EXP_LIBRE, secundario: SEC_LIBRE },
+    pubmed: { principal: `${AGUA_PM}\nAND\n${EXP_PM}\nAND\n${URU_PM}`, secundario: `${AGUA_PM}\nAND\n${SEC_PM}\nAND\n${URU_PM}`, canilla: `${CANILLA_PM}\nAND\n${TODO_PM}\nAND\n${URU_PM}` },
+    bvs: { principal: `${AGUA_BVS}\nAND\n${EXP_BVS}\nAND\n${URU_BVS}`, secundario: `${AGUA_BVS}\nAND\n${SEC_BVS}\nAND\n${URU_BVS}`, canilla: `${CANILLA_BVS}\nAND\n${TODO_BVS}\nAND\n${URU_BVS}` },
+    libre: { agua: AGUA_LIBRE, uruguay: URU_LIBRE, principal: EXP_LIBRE, secundario: SEC_LIBRE, aguaCanilla: CANILLA_LIBRE, canilla: TODO_LIBRE },
+    scieloCanilla: CANILLA_SCIELO,
   };
 
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);

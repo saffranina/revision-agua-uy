@@ -376,12 +376,16 @@ table.chk input{min-width:70px}
     <details class="ayuda"><summary>📖 ¿Qué es esto?</summary><div>Corre las cadenas del protocolo en las bases que dejan buscar desde otra página: <b>PubMed, LILACS, SciELO Uruguay, Europe PMC, OpenAlex y Colibri</b>. Muestra cuántos resultados hay en cada una y, con «Registrar», la guarda como búsqueda y carga sus artículos en Referencias, con la fecha, la cadena exacta y los duplicados marcados, igual que «+ Nueva búsqueda». <b>Scopus, Web of Science y Google Scholar no lo permiten</b>: esas hay que hacerlas en su web (las cadenas están en Búsquedas). Es una función en prueba: compara los números con los de la web de cada base antes de registrar.</div></details>
     <div class="bar"><h2 class="grow">Búsqueda automática <small class="note">beta</small></h2></div>
     <label>¿Qué buscar?<select id="auto-grupo">
+      <option value="canilla">Foco: agua de canilla (punto de consumo), todos los contaminantes</option>
       <option value="principal">Interés principal: cianobacterias y agrotóxicos</option>
       <option value="secundario">Interés secundario: trihalometanos, sodio y cloruros, nitratos, metales, microplásticos</option>
     </select></label>
     <div id="auto-bases" class="auto-lista"></div>
     <div class="bar"><button type="button" class="btn" id="auto-go">🔎 Buscar en las bases marcadas</button>
       <button type="button" class="btn ghost edit-only" id="auto-todas" hidden>Registrar todas</button></div>
+    <details class="cadenas" id="auto-gris"><summary>🏛️ Literatura gris y organismos del Estado</summary>
+      <div id="auto-gris-lista"></div>
+    </details>
     <p class="note">Nada se guarda hasta que tocas «Registrar». Registra cada base por separado: PRISMA pide informar cada búsqueda con su fecha, su cadena y su número de resultados.</p>
   </section>
 
@@ -668,17 +672,17 @@ table.chk input{min-width:70px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="config.js?v=47"></script>
-<script src="autocompletar.js?v=47"></script>
-<script src="importar.js?v=47"></script>
-<script src="prisma.js?v=47"></script>
+<script src="config.js?v=48"></script>
+<script src="autocompletar.js?v=48"></script>
+<script src="importar.js?v=48"></script>
+<script src="prisma.js?v=48"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
-<script src="prioridad.js?v=47"></script>
-<script src="app.js?v=47"></script>
-<script src="estudios.js?v=47"></script>
-<script src="extras.js?v=47"></script>
-<script src="cadenas.js?v=47"></script>
-<script src="buscador.js?v=47"></script>
-<script src="herramientas.js?v=47"></script>
+<script src="prioridad.js?v=48"></script>
+<script src="app.js?v=48"></script>
+<script src="estudios.js?v=48"></script>
+<script src="extras.js?v=48"></script>
+<script src="cadenas.js?v=48"></script>
+<script src="buscador.js?v=48"></script>
+<script src="herramientas.js?v=48"></script>
 </body>
 </html>

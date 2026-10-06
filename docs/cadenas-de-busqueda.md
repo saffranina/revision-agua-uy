@@ -137,6 +137,20 @@ Mismo bloque de **agua de consumo** y mismo bloque de **Uruguay** que arriba; so
  OR nitrate* OR nitrite* OR methemoglobinemia OR arsenic OR "lead" OR "heavy metal*" OR microplastic*)
 ```
 
+## Foco: agua de canilla (la que se bebe en el punto de consumo)
+
+El agua que interesa es la que efectivamente se bebe: la de la canilla, la del pozo o el aljibe de la casa, en el **punto de consumo**. Esta búsqueda usa un bloque de agua enfocado en eso y junta **todos los contaminantes** (principal y secundario). Se registra como búsqueda aparte (en notas: «foco agua de canilla»). Las cadenas de arriba se mantienen.
+
+**Bloque de agua (PubMed):**
+```
+("Drinking Water"[Mesh] OR "tap water"[tiab] OR "faucet water"[tiab] OR "household water"[tiab]
+ OR "household drinking water"[tiab] OR "point-of-use"[tiab] OR "point of use"[tiab] OR "point-of-consumption"[tiab]
+ OR "well water"[tiab] OR "private well*"[tiab] OR "domestic well*"[tiab] OR "piped water"[tiab] OR "municipal water"[tiab]
+ OR "drinking water"[tiab] OR "agua de canilla"[tiab] OR "agua del grifo"[tiab] OR "agua de la red"[tiab]
+ OR "agua de pozo"[tiab] OR "agua potable"[tiab] OR "agua de consumo"[tiab] OR "água da torneira"[tiab])
+```
+Se combina con `AND` (bloque de exposición principal `OR` secundario) `AND` (bloque de Uruguay). Las cadenas completas para cada base (PubMed, BVS/LILACS, SciELO, Scopus, Web of Science y Google Scholar) están en la página, en **Búsquedas → 🔍 Cadenas de búsqueda → Foco: agua de canilla**, y en **Buscar (beta)** es la opción por defecto.
+
 ## Repositorios y literatura gris uruguaya (otros métodos)
 
 - **Colibri (UdelaR)**: `cianobacterias agua potable`, `agrotóxicos agua`, `plaguicidas agua potable`, `glifosato agua` (en la página: con el link de Colibri se arma solo el hilo de resultados).

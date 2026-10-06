@@ -121,11 +121,35 @@
       ["ops", "OPS/OMS Uruguay", "https://www.paho.org/es/uruguay", google("paho.org", "Uruguay agua potable (cianobacterias OR plaguicidas OR calidad)")],
       ["parlamento", "Parlamento: pedidos de informe y versiones taquigráficas", "https://parlamento.gub.uy", google("parlamento.gub.uy", "agua potable (cianobacterias OR agrotóxicos OR crisis hídrica)")],
     ]],
+    ["Organismos del Estado, normativa e internacionales", [
+      ["gubuy", "Todo el Estado (todos los sitios gub.uy)", "https://www.gub.uy", google("gub.uy")],
+      ["mgap", "MGAP (DGSA): registro y control de plaguicidas", "https://www.gub.uy/ministerio-ganaderia-agricultura-pesca", google("gub.uy/ministerio-ganaderia-agricultura-pesca", "(plaguicidas OR agroquímicos OR fitosanitarios) agua")],
+      ["dinagua", "DINAGUA (Ministerio de Ambiente): Dirección Nacional de Aguas", "https://www.gub.uy/ministerio-ambiente", google("gub.uy/ministerio-ambiente", "DINAGUA agua potable")],
+      ["oan", "Observatorio Ambiental Nacional: datos de calidad de agua", "https://www.ambiente.gub.uy/oan", google("ambiente.gub.uy", "calidad de agua")],
+      ["sinae", "SINAE: emergencias (crisis hídrica 2023)", "https://www.gub.uy/sistema-nacional-emergencias", google("gub.uy/sistema-nacional-emergencias", "agua potable OR crisis hídrica")],
+      ["impo", "IMPO: normativa (decretos y reglamentos de agua potable)", "https://www.impo.com.uy", google("impo.com.uy", "agua potable")],
+      ["unit", "UNIT: norma 833 de agua potable", "https://www.unit.org.uy", google("unit.org.uy", "833 agua potable")],
+      ["canelones", "Intendencia de Canelones", "https://www.imcanelones.gub.uy", google("imcanelones.gub.uy", "agua potable")],
+      ["maldonado", "Intendencia de Maldonado (Laguna del Sauce)", "https://www.maldonado.gub.uy", google("maldonado.gub.uy", "agua potable OR \"Laguna del Sauce\"")],
+      ["inddhh", "INDDHH: informes sobre el derecho al agua", "https://www.gub.uy/institucion-nacional-derechos-humanos-uruguay", google("gub.uy/institucion-nacional-derechos-humanos-uruguay", "agua potable")],
+      ["latu", "LATU: informes técnicos", "https://www.latu.org.uy", google("latu.org.uy", "agua potable")],
+      ["iris", "OMS: repositorio IRIS", "https://iris.who.int", "https://iris.who.int/discover?query=" + encodeURIComponent("drinking water Uruguay")],
+      ["cepal", "CEPAL: repositorio", "https://repositorio.cepal.org", google("repositorio.cepal.org", "agua potable Uruguay")],
+      ["bid", "BID: publicaciones", "https://publications.iadb.org", google("publications.iadb.org", "agua potable Uruguay")],
+    ]],
   ];
+  const GRIS = new Set([...FUENTES[2][1], ...FUENTES[3][1]].map(x => x[0]));
+  // Para el buscador: el link de Google limitado al sitio se rehace con los términos del grupo elegido
+  function conTerminos(buscar, terminos) {
+    if (!terminos) return buscar;
+    let dom; try { dom = (new URL(buscar).searchParams.get("q") || "").match(/^site:(\S+)/) } catch (e) { dom = null }
+    if (!dom || !/google\./.test(buscar)) return buscar;
+    return google(dom[1], terminos + (/\.uy(\/|$)/.test(dom[1]) ? "" : " Uruguay"));
+  }
   const leer = id => { try { return JSON.parse(PROT["man:" + id] || "null") } catch (e) { return null } };
   const extras = () => { try { return JSON.parse(PROT["man:extra"] || "[]") } catch (e) { return [] } };
-  function fila([id, nombre, sitio, buscar]) {
-    const v = leer(id), admin = clave && rol && rol.admin;
+  function filaBase([id, nombre, sitio, buscarFijo], terminos) {
+    const v = leer(id), admin = clave && rol && rol.admin, buscar = conTerminos(buscarFijo, terminos);
     return `<div class="man" data-man="${esc(id)}">
       <div><b>${esc(nombre)}</b> ${v ? `<span class="uycheck ok" style="display:inline">✅ Revisada ${esc(fdate(v.fecha))}${v.n !== "" && v.n != null ? ` · ${esc(v.n)} encontrado${String(v.n) === "1" ? "" : "s"}` : ""}${v.quien ? " · " + esc(v.quien) : ""}</span>` : '<span class="meta">Sin revisar</span>'}</div>
       ${v && v.notas ? `<div class="meta">${esc(v.notas)}</div>` : ""}
@@ -134,13 +158,26 @@
       <div class="man-form" hidden></div>
     </div>`;
   }
+  // Se dibuja en Búsquedas (todas las fuentes) y en Buscar (beta) (literatura gris y Estado, con los términos del grupo elegido)
   function renderManual() {
-    const el = $("#manual-lista"); if (!el) return;
-    const todas = FUENTES.map(([g, l]) => [g, l]).concat(extras().length ? [["Agregadas por ti", extras().map(x => [x.id, x.nombre, x.sitio, x.buscar || x.sitio])]] : []);
+    renderLista($("#manual-lista"), {});
+    const g = $("#auto-grupo");
+    renderLista($("#auto-gris-lista"), { soloGris: true, terminos: g ? TERMINOS_GRUPO[g.value] : "" });
+  }
+  const TERMINOS_GRUPO = {
+    canilla: '("agua potable" OR "agua de canilla" OR "agua de pozo" OR "calidad del agua") (cianobacterias OR plaguicidas OR agrotóxicos OR nitratos OR plomo OR arsénico OR trihalometanos OR sodio)',
+    principal: '"agua potable" (cianobacterias OR microcistinas OR agrotóxicos OR plaguicidas OR glifosato)',
+    secundario: '"agua potable" (trihalometanos OR sodio OR cloruros OR nitratos OR arsénico OR plomo OR microplásticos)',
+  };
+  function renderLista(el, { soloGris, terminos }) {
+    if (!el) return;
+    const fila = x => filaBase(x, terminos);
+    const base = soloGris ? FUENTES.filter(([, l]) => l.some(x => GRIS.has(x[0]))) : FUENTES;
+    const todas = base.map(([g, l]) => [g, l]).concat(!soloGris && extras().length ? [["Agregadas por ti", extras().map(x => [x.id, x.nombre, x.sitio, x.buscar || x.sitio])]] : []);
     const total = todas.reduce((n, [, l]) => n + l.length, 0), hechas = todas.reduce((n, [, l]) => n + l.filter(([id]) => leer(id)).length, 0);
-    el.innerHTML = `<p class="note">Revisadas: <b>${hechas} de ${total}</b>. «Buscar ahí» abre la búsqueda del sitio o de Google limitada a ese sitio. Lo que encuentres agrégalo con «+ Agregar a mano» en Referencias (pega el link o el título y toca «Completar»). Para que cuente en el diagrama PRISMA («Otros métodos»), usa «Registrar como búsqueda».</p>` +
+    el.innerHTML = (soloGris ? `<p class="note">Los sitios del Estado y los organismos no dejan que otros programas busquen en ellos, así que no se pueden traer solos como las bases de arriba. Cada «🔎 Buscar ahí» abre la búsqueda <b>con los términos del grupo elegido arriba</b>; lo que sirva lo cargas con «+ Agregar a mano» en Referencias y marcas la fuente como revisada (se guarda junto con la lista de Búsquedas).</p>` : "") + `<p class="note">Revisadas: <b>${hechas} de ${total}</b>. «Buscar ahí» abre la búsqueda del sitio o de Google limitada a ese sitio. Lo que encuentres agrégalo con «+ Agregar a mano» en Referencias (pega el link o el título y toca «Completar»). Para que cuente en el diagrama PRISMA («Otros métodos»), usa «Registrar como búsqueda».</p>` +
       todas.map(([g, l]) => `<h3 class="cad-grupo">${esc(g)}</h3>${l.map(fila).join("")}`).join("") +
-      (clave && rol && rol.admin ? `<div class="bar"><input class="grow" id="man-nombre" placeholder="Otra fuente (nombre)"><input class="grow" id="man-sitio" type="url" placeholder="https://…"><button type="button" class="btn ghost" id="man-add">+ Agregar fuente</button></div>` : "");
+      (!soloGris && clave && rol && rol.admin ? `<div class="bar"><input class="grow" id="man-nombre" placeholder="Otra fuente (nombre)"><input class="grow" id="man-sitio" type="url" placeholder="https://…"><button type="button" class="btn ghost" id="man-add">+ Agregar fuente</button></div>` : "");
     const todasPlanas = todas.flatMap(([, l]) => l);
     el.querySelectorAll("[data-marcar]").forEach(a => a.onclick = e => {
       e.preventDefault();
@@ -158,9 +195,9 @@
     });
     el.querySelectorAll("[data-registrar-man]").forEach(a => a.onclick = e => {
       e.preventDefault();
-      const [id, nombre, sitio, buscar] = todasPlanas.find(x => x[0] === a.dataset.registrarMan), v = leer(id) || {};
+      const [id, nombre, sitio, buscarFijo] = todasPlanas.find(x => x[0] === a.dataset.registrarMan), v = leer(id) || {}, buscar = conTerminos(buscarFijo, terminos);
       openB(null);
-      const base = FUENTES[2][1].some(x => x[0] === id) ? "Literatura gris / informes (OSE, MSP, URSEA)" : "Otra";
+      const base = GRIS.has(id) ? "Literatura gris / informes (OSE, MSP, URSEA)" : "Otra";
       $("#b-base").value = base; $("#b-base").dispatchEvent(new Event("change"));
       $("#b-metodo").value = "otros"; if (typeof syncMetodo === "function") syncMetodo();
       $("#b-cadena").value = `Búsqueda manual en ${nombre} (${sitio}).${v.notas ? " " + v.notas : ""}`;
@@ -177,4 +214,5 @@
   }
   window.renderManual = renderManual;
   renderManual();
+  const grupoSel = $("#auto-grupo"); if (grupoSel) grupoSel.addEventListener("change", renderManual);
 })();
