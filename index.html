@@ -266,6 +266,7 @@ nav.tabs small{font-size:.65em;font-weight:700;text-transform:uppercase;letter-s
 .dup-par{border:2px solid var(--line);border-radius:14px;padding:10px;margin:10px 0;display:grid;gap:6px}
 .dup-ficha{background:var(--bg);border-radius:10px;padding:8px;line-height:1.4}
 #dlg-dup form{padding:16px;display:grid;gap:8px}
+.cad-var{display:block;margin-top:10px;font-size:.9rem}
 details.cadenas{background:var(--surface);border:2px solid var(--lav);border-radius:16px;padding:8px 12px}
 details.cadenas>summary{cursor:pointer;font-weight:800;color:var(--accent)}
 .cad-grupo{font-family:var(--f-display);font-weight:600;font-size:1rem;margin:14px 0 6px;color:var(--ink)}
@@ -379,6 +380,10 @@ table.chk input{min-width:70px}
       <option value="canilla">Foco: agua de canilla (punto de consumo), todos los contaminantes</option>
       <option value="principal">Interés principal: cianobacterias y agrotóxicos</option>
       <option value="secundario">Interés secundario: trihalometanos, sodio y cloruros, nitratos, metales, microplásticos</option>
+    </select></label>
+    <label>Vocabulario controlado (PubMed y LILACS)<select id="auto-vocab">
+      <option value="con">Con MeSH / DeCS (más completa)</option>
+      <option value="sin">Sin MeSH / DeCS (solo texto libre en título y resumen)</option>
     </select></label>
     <div id="auto-bases" class="auto-lista"></div>
     <div class="bar"><button type="button" class="btn" id="auto-go">🔎 Buscar en las bases marcadas</button>
@@ -672,17 +677,17 @@ table.chk input{min-width:70px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="config.js?v=48"></script>
-<script src="autocompletar.js?v=48"></script>
-<script src="importar.js?v=48"></script>
-<script src="prisma.js?v=48"></script>
+<script src="config.js?v=49"></script>
+<script src="autocompletar.js?v=49"></script>
+<script src="importar.js?v=49"></script>
+<script src="prisma.js?v=49"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
-<script src="prioridad.js?v=48"></script>
-<script src="app.js?v=48"></script>
-<script src="estudios.js?v=48"></script>
-<script src="extras.js?v=48"></script>
-<script src="cadenas.js?v=48"></script>
-<script src="buscador.js?v=48"></script>
-<script src="herramientas.js?v=48"></script>
+<script src="prioridad.js?v=49"></script>
+<script src="app.js?v=49"></script>
+<script src="estudios.js?v=49"></script>
+<script src="extras.js?v=49"></script>
+<script src="cadenas.js?v=49"></script>
+<script src="buscador.js?v=49"></script>
+<script src="herramientas.js?v=49"></script>
 </body>
 </html>

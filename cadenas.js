@@ -146,6 +146,14 @@ AND (TS=${URU_LIBRE} OR CU=Uruguay)` },
     scieloCanilla: CANILLA_SCIELO,
   };
 
+  // Versión sin vocabulario controlado: quita los términos MeSH ([Mesh]) y DeCS (mh:) y deja solo el texto libre
+  function sinVocab(c) {
+    return c.replace(/"[^"]+"\[Mesh(?::NoExp)?\]\s*(OR\s*)?/g, "").replace(/\bmh:("[^"]+"|[^\s()]+)\s*(OR\s*)?/g, "")
+      .replace(/\s+OR\s*\)/g, ")").replace(/\(\s*OR\s+/g, "(").replace(/\(\s*\n\s*/g, "(").replace(/[ \t]+\n/g, "\n");
+  }
+  const conVocab = c => /\[Mesh|\bmh:/.test(c);
+  window.Cadenas.sinVocab = sinVocab;
+
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const caja = document.getElementById("cadenas-box");
   if (!caja) return;
@@ -154,10 +162,18 @@ AND (TS=${URU_LIBRE} OR CU=Uruguay)` },
     const id = "cad-" + (n++);
     const abrir = c.abrir && !c.porLinea ? `<a class="btn ghost" href="${esc(c.abrir(c.cadena))}" target="_blank" rel="noopener">🔎 Abrir en ${esc(c.base.split(" ")[0])}</a>` : "";
     const lineas = c.porLinea ? `<div class="cad-lineas">${c.cadena.split("\n").map(l => `<a href="${esc(c.abrir(l))}" target="_blank" rel="noopener">🔎 ${esc(l)}</a>`).join("")}</div>` : "";
-    return `<details class="cad"><summary>${esc(c.base)}</summary>
+    // PubMed y BVS: la cadena con MeSH/DeCS y la misma sin ellos (solo texto libre)
+    const vocab = conVocab(c.cadena), nombreVocab = /^PubMed/.test(c.base) ? "MeSH" : "DeCS";
+    const sin = vocab ? sinVocab(c.cadena) : "", id2 = id + "-sin";
+    const abrirSin = vocab && c.abrir ? `<a class="btn ghost" href="${esc(c.abrir(sin))}" target="_blank" rel="noopener">🔎 Abrir en ${esc(c.base.split(" ")[0])}</a>` : "";
+    return `<details class="cad"><summary>${esc(c.base)}${vocab ? ` <span class="note">(con y sin ${nombreVocab})</span>` : ""}</summary>
       ${c.nota ? `<p class="note">${esc(c.nota)}</p>` : ""}
+      ${vocab ? `<b class="cad-var">Con ${nombreVocab}</b>` : ""}
       <pre class="cad-pre" id="${id}">${esc(c.cadena)}</pre>
-      <div class="cad-btns"><button type="button" class="btn ghost" data-cad="${id}">📋 Copiar</button>${abrir}</div>${lineas}</details>`;
+      <div class="cad-btns"><button type="button" class="btn ghost" data-cad="${id}">📋 Copiar</button>${abrir}</div>${lineas}
+      ${vocab ? `<b class="cad-var">Sin ${nombreVocab} (solo texto libre en título y resumen)</b>
+      <pre class="cad-pre" id="${id2}">${esc(sin)}</pre>
+      <div class="cad-btns"><button type="button" class="btn ghost" data-cad="${id2}">📋 Copiar</button>${abrirSin}</div>` : ""}</details>`;
   }).join("")).join("");
 
   caja.addEventListener("click", async e => {

@@ -11,6 +11,11 @@
 
   // Cadena de cada base para el grupo elegido (principal o secundario)
   function cadena(base, grupo) {
+    const c = cadenaBase(base, grupo);
+    // «Sin MeSH/DeCS»: en PubMed y LILACS se quitan los términos del vocabulario controlado
+    return caja.querySelector("#auto-vocab").value === "sin" && (base === "pubmed" || base === "bvs") ? window.Cadenas.sinVocab(c) : c;
+  }
+  function cadenaBase(base, grupo) {
     const C = window.Cadenas, L = C.libre, exp = L[grupo];
     // Foco agua de canilla: otro bloque de agua (punto de consumo) y todos los contaminantes
     const agua = grupo === "canilla" ? L.aguaCanilla : L.agua;
@@ -174,7 +179,7 @@ AND (trihalometano* OR trihalomethane* OR cloroformo OR sodio OR sodium OR cloru
       res[b.id] = { cargando: "Buscando…" }; pintar(b);
       try {
         const x = await traer(b.id, c, t => { res[b.id] = { cargando: t }; pintar(b) });
-        res[b.id] = { refs: x.refs.slice(0, MAX), total: x.total || x.refs.length, cadena: c, web: b.web(c), grupo, aviso: x.aviso };
+        res[b.id] = { refs: x.refs.slice(0, MAX), total: x.total || x.refs.length, cadena: c, web: b.web(c), grupo, aviso: x.aviso, vocab: caja.querySelector("#auto-vocab").value };
       } catch (e) { res[b.id] = { error: e.message === "Acción desconocida." ? "falta actualizar el motor" : e.message } }
       pintar(b);
     }));
@@ -195,7 +200,7 @@ AND (trihalometano* OR trihalomethane* OR cloroformo OR sodio OR sodium OR cloru
       x.idBusqueda = x.idBusqueda || "B" + Math.random().toString(16).slice(2, 10);
       const j = await api("guardarBusqueda", { id: x.idBusqueda, base: b.nombre, fecha: hoy, cadena: x.cadena.trim(), filtros: id === "bvs" ? "Base de datos: LILACS" : id === "scielo" ? "Colección: SciELO Uruguay" : "",
         n: x.total, campos: "", link: x.web, metodo: Prisma.OTROS_POR_DEFECTO.includes(b.nombre) ? "otros" : "bases",
-        notas: `Búsqueda automática (beta) desde la página, ${{ canilla: "foco agua de canilla (punto de consumo), todos los contaminantes", principal: "interés principal", secundario: "interés secundario" }[x.grupo] || x.grupo}.` + (soloUy ? " Se cargaron solo los relacionados con Uruguay." : "") + (x.refs.length < x.total ? ` Se trajeron ${x.refs.length} de ${x.total}.` : "") });
+        notas: `Búsqueda automática (beta) desde la página${(id === "pubmed" || id === "bvs") ? (x.vocab === "sin" ? ", sin MeSH/DeCS (solo texto libre)" : ", con MeSH/DeCS") : ""}, ${{ canilla: "foco agua de canilla (punto de consumo), todos los contaminantes", principal: "interés principal", secundario: "interés secundario" }[x.grupo] || x.grupo}.` + (soloUy ? " Se cargaron solo los relacionados con Uruguay." : "") + (x.refs.length < x.total ? ` Se trajeron ${x.refs.length} de ${x.total}.` : "") });
       const lista = marcados.map(r => ({ titulo: r.titulo, autores: r.autores, anio: r.anio, revista: r.revista, doi: r.doi, link: r.link, resumen: r.resumen,
         uruguay: r.uruguay, estado: r.duplicadoDe ? "dup" : "pend", notas: r.duplicadoDe ? "Duplicado de " + r.duplicadoDe : "" }));
       for (let i = 0; i < lista.length; i += 50) {
