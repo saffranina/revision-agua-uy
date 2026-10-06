@@ -168,7 +168,7 @@ function doPost(e) {
         if (!rol.admin) throw new Error('El paquete completo lo baja quien administra.');
         return json_({ ok: true, decisiones: hojaObjetos_('Decisiones'), comentarios: hojaObjetos_('Comentarios') });
       case 'guardarBusqueda': return json_({ ok: true, id: guardarBusqueda_(d) });
-      case 'borrarBusqueda': borrarFila_('Busquedas', 'id', d.id); return json_({ ok: true });
+      case 'borrarBusqueda': borrarFila_('Busquedas', 'id', d.id); historial_(d.id, 'Búsqueda eliminada', ''); return json_({ ok: true });
       case 'guardarReferencia': return json_({ ok: true, ...guardarReferencia_(d, rol) });
       case 'importarReferencias': return json_({ ok: true, ...importarReferencias_(d) });
       case 'traerUrl': return json_({ ok: true, ...traerUrl_(d.url) });
@@ -199,6 +199,7 @@ function guardarBusqueda_(d) {
     creado: previo.creado || ahora, actualizado: ahora,
   };
   escribirFila_(hoja, fila, reg);
+  historial_(reg.id, fila > 0 ? 'Búsqueda editada' : 'Búsqueda registrada', reg.base + ' · ' + reg.n + ' resultados');
   return reg.id;
 }
 
