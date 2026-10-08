@@ -270,6 +270,7 @@ nav.tabs small{font-size:.65em;font-weight:700;text-transform:uppercase;letter-s
 .sel-bar{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--surface);border:2px solid var(--accent);border-radius:14px;padding:8px 10px;margin:8px 0}
 .sel-bar .grow{flex:1 1 140px;font-weight:700} .sel-bar select,.sel-bar input{flex:1 1 180px}
 .item .sel-chk{width:20px;height:20px;margin:2px 8px 0 0;flex:0 0 auto} .item.sel{outline:2px solid var(--accent)}
+.pager{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;margin:12px 0}
 details.cadenas{background:var(--surface);border:2px solid var(--lav);border-radius:16px;padding:8px 12px}
 details.cadenas>summary{cursor:pointer;font-weight:800;color:var(--accent)}
 .cad-grupo{font-family:var(--f-display);font-weight:600;font-size:1rem;margin:14px 0 6px;color:var(--ink)}
@@ -414,15 +415,21 @@ table.chk input{min-width:70px}
       <button type="button" class="btn ghost" id="dup-btn">🔍 Posibles duplicados</button>
       <button type="button" class="btn ghost" id="sel-btn">☑ Seleccionar varios</button>
     </div>
+    <details class="cadenas edit-only" id="auto-crib"><summary>🔤 Auto-cribado: excluir por palabras en el título</summary>
+      <p class="note">Escribe palabras que, si aparecen en el título, significan que el artículo no entra (por ejemplo: <i>ratas, ratones, ganado, peces, playa, recreativa, Argentina</i>). Separa con coma; con asterisco busca el comienzo (<i>bovin*</i> encuentra bovino, bovinos, bovina). Solo mira los <b>pendientes de la Fase 1</b>. No excluye nada solo: te los muestra seleccionados para que los revises antes.</p>
+      <div class="bar"><input class="grow" id="auto-crib-in" placeholder="ratas, ratones, ganado, bovin*, playa"><button type="button" class="btn" id="auto-crib-go">Buscar coincidencias</button></div>
+      <div id="auto-crib-res" class="oa" hidden></div>
+    </details>
     <div class="sel-bar" id="sel-bar" hidden>
       <span id="sel-n" class="grow"></span>
-      <button type="button" class="btn ghost" id="sel-todos">Seleccionar / quitar todos los que se ven</button>
+      <button type="button" class="btn ghost" id="sel-todos">Seleccionar / quitar todos los de esta página</button>
       <select id="sel-motivo" aria-label="Motivo de exclusión"></select>
       <input id="sel-otro" placeholder="Otro motivo…" hidden>
       <button type="button" class="btn danger" id="sel-excl">✗ Excluir por título/resumen</button>
     </div>
     <div id="pdf-res" class="oa" hidden></div>
     <div class="list" id="list-r"></div>
+    <div class="pager" id="pag-r"></div>
   </section>
 
   <section class="view" id="v-estudios" hidden>
@@ -688,17 +695,17 @@ table.chk input{min-width:70px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="config.js?v=51"></script>
-<script src="autocompletar.js?v=51"></script>
-<script src="importar.js?v=51"></script>
-<script src="prisma.js?v=51"></script>
+<script src="config.js?v=52"></script>
+<script src="autocompletar.js?v=52"></script>
+<script src="importar.js?v=52"></script>
+<script src="prisma.js?v=52"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
-<script src="prioridad.js?v=51"></script>
-<script src="app.js?v=51"></script>
-<script src="estudios.js?v=51"></script>
-<script src="extras.js?v=51"></script>
-<script src="cadenas.js?v=51"></script>
-<script src="buscador.js?v=51"></script>
-<script src="herramientas.js?v=51"></script>
+<script src="prioridad.js?v=52"></script>
+<script src="app.js?v=52"></script>
+<script src="estudios.js?v=52"></script>
+<script src="extras.js?v=52"></script>
+<script src="cadenas.js?v=52"></script>
+<script src="buscador.js?v=52"></script>
+<script src="herramientas.js?v=52"></script>
 </body>
 </html>

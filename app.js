@@ -224,10 +224,17 @@ function renderR() {
   const dupl = indiceDuplicados();
   const rows = R.filter(r => (st === "todos" || (!st ? r.estadoK !== "dup" : r.estadoK === st)) && (!fb || r.busqueda === fb) &&
     (!q || [r.codigo, r.titulo, r.autores, r.doi, r.notas, r.tema, r.revista].join(" ").toLowerCase().includes(q)) &&
-    (!ft || (ft === "ninguno" ? !temasDe(r).length : temasDe(r).some(x => x.k === ft))));
+    (!ft || (ft === "ninguno" ? !temasDe(r).length : temasDe(r).some(x => x.k === ft))) && (!soloIds || soloIds.has(r.codigo)));
   if (!R.length) { el.innerHTML = `<div class="empty">Sin referencias todavía.${clave ? " Agrega cada artículo que salga de tus búsquedas y ve cambiando su estado a medida que lo revisas." : ""}</div>`; return }
-  if (!rows.length) { el.innerHTML = `<div class="empty">Ninguna referencia coincide con el filtro.</div>`; return }
-  el.innerHTML = rows.map(r => {
+  if (!rows.length) { el.innerHTML = `<div class="empty">Ninguna referencia coincide con el filtro.</div>`; $("#pag-r").innerHTML = ""; visiblesR = []; barraSel(); return }
+  // De a 50 por página
+  const paginas = Math.ceil(rows.length / POR_PAGINA); paginaR = Math.min(paginaR, paginas - 1);
+  const pagina = rows.slice(paginaR * POR_PAGINA, (paginaR + 1) * POR_PAGINA);
+  $("#pag-r").innerHTML = paginas > 1 ? `<button type="button" class="btn ghost" data-pag="-1"${paginaR ? "" : " disabled"}>‹ Anterior</button>
+    <span>Página ${paginaR + 1} de ${paginas} · ${rows.length} artículos</span>
+    <button type="button" class="btn ghost" data-pag="1"${paginaR < paginas - 1 ? "" : " disabled"}>Siguiente ›</button>` : `<span class="meta">${rows.length} artículo${rows.length === 1 ? "" : "s"}</span>`;
+  $("#pag-r").querySelectorAll("[data-pag]").forEach(b => b.onclick = () => { paginaR += Number(b.dataset.pag); renderR(); $("#list-r").scrollIntoView({ block: "start" }) });
+  el.innerHTML = pagina.map(r => {
     const link = safeUrl(r.link) || doiUrl(r.doi);
     const fechas = [r.creado ? "Registrada " + fdate(r.creado) : "", r.fechaBusqueda ? `Buscada ${fdate(r.fechaBusqueda)} en ${r.base}` : "",
       r.fechaCribado ? "Cribada " + fdate(r.fechaCribado) : "",
@@ -246,8 +253,12 @@ function renderR() {
   // En modo «Seleccionar varios», tocar un artículo lo marca o desmarca en vez de abrir la ficha
   const abrir = id => modoSel ? alternarSel(id) : openR(id);
   el.querySelectorAll(".item").forEach(i => { i.onclick = () => abrir(i.dataset.id); i.onkeydown = e => { if (e.key === "Enter" && e.target === i) abrir(i.dataset.id) } });
-  visiblesR = rows.map(r => r.codigo); barraSel();
+  visiblesR = pagina.map(r => r.codigo); barraSel();
 }
+const POR_PAGINA = 50;
+let paginaR = 0, soloIds = null, palabraAuto = "";
+// Al cambiar un filtro se vuelve a la primera página
+const renderR1 = () => { paginaR = 0; renderR() };
 
 /* ---------- Selección de varios artículos para excluirlos de una vez ---------- */
 let modoSel = false, selR = new Set(), visiblesR = [];
@@ -262,8 +273,31 @@ function barraSel() {
 }
 $("#sel-btn").onclick = () => {
   if (!(rol && rol.admin)) { toast("Para excluir varios a la vez entra con la clave de administración."); return }
-  modoSel = !modoSel; selR.clear(); $("#sel-btn").textContent = modoSel ? "✕ Terminar selección" : "☑ Seleccionar varios"; renderR();
+  modoSel = !modoSel; selR.clear(); soloIds = null; palabraAuto = ""; $("#auto-crib-res").hidden = true;
+  $("#sel-btn").textContent = modoSel ? "✕ Terminar selección" : "☑ Seleccionar varios"; paginaR = 0; renderR();
 };
+/* ---------- Auto-cribado: excluir por palabras en el título ---------- */
+// Busca en el título de los pendientes (Fase 1) las palabras escritas (separadas por coma; «rat*» = que empiece con «rat»),
+// los deja seleccionados para revisarlos y, al confirmar, se excluyen con el motivo elegido y una nota de la palabra
+const normT = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+function coincidenTitulo(palabras) {
+  const res = palabras.map(p => { const w = normT(p).trim().replace(/[.+?^${}()|[\]\\]/g, "\\$&"); return w.endsWith("*") ? new RegExp("\\b" + w.slice(0, -1).replace(/\*/g, "")) : new RegExp("\\b" + w.replace(/\*/g, "") + "\\b") });
+  return R.filter(r => r.estadoK === "pend" && res.some(re => re.test(normT(r.titulo))));
+}
+$("#auto-crib-go").onclick = () => {
+  if (!(rol && rol.admin)) { toast("El auto-cribado lo hace quien entra con la clave de administración."); return }
+  const palabras = $("#auto-crib-in").value.split(",").map(x => x.trim()).filter(x => x.replace(/\*/g, "").length > 1);
+  if (!palabras.length) { toast("Escribe una o más palabras, separadas por coma."); return }
+  const lista = coincidenTitulo(palabras);
+  const box = $("#auto-crib-res"); box.hidden = false;
+  if (!lista.length) { box.innerHTML = `<span>Ningún artículo pendiente tiene ${palabras.length === 1 ? "esa palabra" : "esas palabras"} en el título.</span>`; return }
+  palabraAuto = palabras.join(", ");
+  modoSel = true; $("#sel-btn").textContent = "✕ Terminar selección";
+  selR = new Set(lista.map(r => r.codigo)); soloIds = new Set(selR); paginaR = 0;
+  box.innerHTML = `<span><b>${lista.length}</b> artículo${lista.length === 1 ? "" : "s"} pendiente${lista.length === 1 ? "" : "s"} con «${esc(palabraAuto)}» en el título. Quedaron seleccionados y la lista muestra solo esos: <b>revísalos</b>, desmarca los que no correspondan, elige el motivo y toca «Excluir por título/resumen». Para salir sin excluir, «Terminar selección».</span>`;
+  renderR();
+};
+$("#auto-crib-in").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("#auto-crib-go").click() } });
 $("#sel-todos").onclick = () => { const todos = visiblesR.every(c => selR.has(c)); visiblesR.forEach(c => todos ? selR.delete(c) : selR.add(c)); renderR() };
 $("#sel-excl").onclick = () => {
   // Solo los que están en Fase 1 (pendientes): los demás ya tienen una decisión
@@ -274,10 +308,11 @@ $("#sel-excl").onclick = () => {
   const b = $("#sel-excl");
   if (!b.dataset.armed) { b.dataset.armed = 1; b.textContent = `Toca otra vez para excluir ${lista.length}`; setTimeout(() => { delete b.dataset.armed; b.textContent = "✗ Excluir por título/resumen" }, 4000); return }
   delete b.dataset.armed; b.textContent = "✗ Excluir por título/resumen";
-  lista.forEach(r => { r.estadoK = "exta"; r.estado = estadoLabel("exta"); r.motivo = motivo; colaCrib.push({ ...r }) });
+  const nota = palabraAuto ? `Auto-cribado: excluida por «${palabraAuto}» en el título` : "";
+  lista.forEach(r => { r.estadoK = "exta"; r.estado = estadoLabel("exta"); r.motivo = motivo; if (nota) r.notas = [r.notas, nota].filter(Boolean).join(" · "); colaCrib.push({ ...r }) });
   procesarCola();
   toast(`${lista.length} artículo${lista.length === 1 ? "" : "s"} excluido${lista.length === 1 ? "" : "s"} por título/resumen («${motivo}»). Se están guardando.`, 5000);
-  selR.clear(); renderR(); renderP();
+  selR.clear(); if (soloIds) { soloIds = null; palabraAuto = ""; $("#auto-crib-res").hidden = true } renderR(); renderP();
 };
 $("#sel-motivo").onchange = () => { $("#sel-otro").hidden = $("#sel-motivo").value !== "__otro" };
 // Une cada duplicado con su original (mismo DOI o mismo título)
@@ -295,8 +330,8 @@ function indiceDuplicados() {
   });
   return { de, copias };
 }
-$("#f-text").oninput = renderR; $("#f-estado").onchange = renderR; $("#f-busq").onchange = renderR;
-fill($("#f-tema"), [["", "Todos los temas"], ...TEMAS.map(([k, l]) => [k, l]), ["ninguno", "Sin tema detectado"]]); $("#f-tema").onchange = renderR;
+$("#f-text").oninput = renderR1; $("#f-estado").onchange = renderR1; $("#f-busq").onchange = renderR1;
+fill($("#f-tema"), [["", "Todos los temas"], ...TEMAS.map(([k, l]) => [k, l]), ["ninguno", "Sin tema detectado"]]); $("#f-tema").onchange = renderR1;
 
 function renderP() {
   $("#prisma-svg").innerHTML = R.length || B.length ? Prisma.diagrama(B, R) : `<div class="empty">El diagrama se arma solo cuando registres búsquedas y referencias.</div>`;
