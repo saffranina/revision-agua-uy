@@ -31,6 +31,9 @@ let mias = new Map(), otroAvance = null, doble = false, ACU = null, PROT = {}, E
 const faseNum = () => $("#c-fase").value === "pend" ? 1 : 2;
 const claveDec = (codigo, fase) => codigo + "|" + fase;
 let B = [], R = [], H = [], clave = store.get("clave") || "", editB = null, editR = null, pdfFile = null, cargando = false;
+// Lista de Referencias: paginación, selección de varios y auto-cribado (se declaran acá porque show() las usa al abrir)
+const POR_PAGINA = 50;
+let paginaR = 0, soloIds = null, palabraAuto = "", modoSel = false, selR = new Set(), visiblesR = [];
 
 function toast(msg, ms = 2800) {
   const t = $("#toast");
@@ -182,7 +185,7 @@ $("#k-salir").onclick = () => { clave = ""; store.set("clave", null); store.set(
 /* ---------- Pestañas ---------- */
 document.querySelectorAll("nav.tabs button").forEach(b => b.onclick = () => show(b.dataset.tab));
 function show(tab) {
-  if (tab !== "referencias" && typeof soloIds !== "undefined" && soloIds) { soloIds = null; palabraAuto = ""; selR.clear(); modoSel = false; const sb = $("#sel-btn"); if (sb) sb.textContent = "☑ Seleccionar varios"; const ar = $("#auto-crib-res"); if (ar) ar.hidden = true }
+  if (tab !== "referencias" && soloIds) { soloIds = null; palabraAuto = ""; selR.clear(); modoSel = false; const sb = $("#sel-btn"); if (sb) sb.textContent = "☑ Seleccionar varios"; const ar = $("#auto-crib-res"); if (ar) ar.hidden = true }
   document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === tab));
   document.querySelectorAll("section.view").forEach(s => s.hidden = s.id !== "v-" + tab);
   store.set("tab", tab);
@@ -270,13 +273,10 @@ function renderR() {
   el.querySelectorAll(".item").forEach(i => { i.onclick = () => abrir(i.dataset.id); i.onkeydown = e => { if (e.key === "Enter" && e.target === i) abrir(i.dataset.id) } });
   visiblesR = pagina.map(r => r.codigo); barraSel();
 }
-const POR_PAGINA = 50;
-let paginaR = 0, soloIds = null, palabraAuto = "";
 // Al cambiar un filtro se vuelve a la primera página
 const renderR1 = () => { paginaR = 0; renderR() };
 
 /* ---------- Selección de varios artículos para excluirlos de una vez ---------- */
-let modoSel = false, selR = new Set(), visiblesR = [];
 function alternarSel(id) { selR.has(id) ? selR.delete(id) : selR.add(id); renderR() }
 function barraSel() {
   const bar = $("#sel-bar"); if (!bar) return;
