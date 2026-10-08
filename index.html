@@ -267,6 +267,9 @@ nav.tabs small{font-size:.65em;font-weight:700;text-transform:uppercase;letter-s
 .dup-ficha{background:var(--bg);border-radius:10px;padding:8px;line-height:1.4}
 #dlg-dup form{padding:16px;display:grid;gap:8px}
 .cad-var{display:block;margin-top:10px;font-size:.9rem}
+.sel-bar{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--surface);border:2px solid var(--accent);border-radius:14px;padding:8px 10px;margin:8px 0}
+.sel-bar .grow{flex:1 1 140px;font-weight:700} .sel-bar select,.sel-bar input{flex:1 1 180px}
+.item .sel-chk{width:20px;height:20px;margin:2px 8px 0 0;flex:0 0 auto} .item.sel{outline:2px solid var(--accent)}
 details.cadenas{background:var(--surface);border:2px solid var(--lav);border-radius:16px;padding:8px 12px}
 details.cadenas>summary{cursor:pointer;font-weight:800;color:var(--accent)}
 .cad-grupo{font-family:var(--f-display);font-weight:600;font-size:1rem;margin:14px 0 6px;color:var(--ink)}
@@ -409,6 +412,14 @@ table.chk input{min-width:70px}
     <div class="bar edit-only">
       <button type="button" class="btn ghost" id="pdf-lote">📄 Buscar PDFs abiertos (Fase 2 e incluidos)</button>
       <button type="button" class="btn ghost" id="dup-btn">🔍 Posibles duplicados</button>
+      <button type="button" class="btn ghost" id="sel-btn">☑ Seleccionar varios</button>
+    </div>
+    <div class="sel-bar" id="sel-bar" hidden>
+      <span id="sel-n" class="grow"></span>
+      <button type="button" class="btn ghost" id="sel-todos">Seleccionar / quitar todos los que se ven</button>
+      <select id="sel-motivo" aria-label="Motivo de exclusión"></select>
+      <input id="sel-otro" placeholder="Otro motivo…" hidden>
+      <button type="button" class="btn danger" id="sel-excl">✗ Excluir por título/resumen</button>
     </div>
     <div id="pdf-res" class="oa" hidden></div>
     <div class="list" id="list-r"></div>
@@ -677,17 +688,17 @@ table.chk input{min-width:70px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="config.js?v=50"></script>
-<script src="autocompletar.js?v=50"></script>
-<script src="importar.js?v=50"></script>
-<script src="prisma.js?v=50"></script>
+<script src="config.js?v=51"></script>
+<script src="autocompletar.js?v=51"></script>
+<script src="importar.js?v=51"></script>
+<script src="prisma.js?v=51"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
-<script src="prioridad.js?v=50"></script>
-<script src="app.js?v=50"></script>
-<script src="estudios.js?v=50"></script>
-<script src="extras.js?v=50"></script>
-<script src="cadenas.js?v=50"></script>
-<script src="buscador.js?v=50"></script>
-<script src="herramientas.js?v=50"></script>
+<script src="prioridad.js?v=51"></script>
+<script src="app.js?v=51"></script>
+<script src="estudios.js?v=51"></script>
+<script src="extras.js?v=51"></script>
+<script src="cadenas.js?v=51"></script>
+<script src="buscador.js?v=51"></script>
+<script src="herramientas.js?v=51"></script>
 </body>
 </html>

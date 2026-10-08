@@ -232,8 +232,8 @@ function renderR() {
     const fechas = [r.creado ? "Registrada " + fdate(r.creado) : "", r.fechaBusqueda ? `Buscada ${fdate(r.fechaBusqueda)} en ${r.base}` : "",
       r.fechaCribado ? "Cribada " + fdate(r.fechaCribado) : "",
       r.estadoK !== "pend" && r.fechaEstado && r.fechaEstado !== r.fechaCribado ? `${r.estado} ${fdate(r.fechaEstado)}` : ""].filter(Boolean).join(" · ");
-    return `<div class="item" data-id="${esc(r.codigo)}" tabindex="0">
-      <div class="top"><span class="t"><span class="meta">${esc(r.codigo)}</span> ${esc(r.titulo)}</span><span class="pill s-${r.estadoK}">${esc(r.estado)}</span></div>
+    return `<div class="item${selR.has(r.codigo) ? " sel" : ""}" data-id="${esc(r.codigo)}" tabindex="0">
+      <div class="top">${modoSel ? `<input type="checkbox" class="sel-chk" aria-label="Seleccionar ${esc(r.codigo)}"${selR.has(r.codigo) ? " checked" : ""}>` : ""}<span class="t"><span class="meta">${esc(r.codigo)}</span> ${esc(r.titulo)}</span><span class="pill s-${r.estadoK}">${esc(r.estado)}</span></div>
       <div class="meta">${esc([r.autores, r.anio, r.revista].filter(Boolean).join(" · "))}</div>
       ${temasDe(r).length ? `<div class="temas">${temasDe(r).map(x => `<span class="tema t-${x.k}">${esc(x.l)}</span>`).join("")}</div>` : ""}
       ${r.tema || r.motivo ? `<div class="meta">${esc([r.tema, r.motivo ? "Motivo: " + r.motivo : ""].filter(Boolean).join(" · "))}</div>` : ""}
@@ -243,8 +243,43 @@ function renderR() {
       ${link || safeUrl(r.pdf) || r.resumen ? `<div class="links">${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">Ver en la fuente ↗</a>` : ""}${safeUrl(r.pdf) ? `<a href="${esc(r.pdf)}" target="_blank" rel="noopener">PDF ↗</a>` : ""}${r.resumen ? '<span class="meta">Con resumen</span>' : ""}${typeof nCom === "function" && nCom(r.codigo) ? `<span class="meta">💬 ${nCom(r.codigo)}</span>` : ""}</div>` : ""}
     </div>`}).join("");
   el.querySelectorAll(".item a").forEach(a => a.onclick = e => { e.stopPropagation(); if (a.dataset.ir) { e.preventDefault(); openR(a.dataset.ir) } });
-  el.querySelectorAll(".item").forEach(i => { i.onclick = () => openR(i.dataset.id); i.onkeydown = e => { if (e.key === "Enter" && e.target === i) openR(i.dataset.id) } });
+  // En modo «Seleccionar varios», tocar un artículo lo marca o desmarca en vez de abrir la ficha
+  const abrir = id => modoSel ? alternarSel(id) : openR(id);
+  el.querySelectorAll(".item").forEach(i => { i.onclick = () => abrir(i.dataset.id); i.onkeydown = e => { if (e.key === "Enter" && e.target === i) abrir(i.dataset.id) } });
+  visiblesR = rows.map(r => r.codigo); barraSel();
 }
+
+/* ---------- Selección de varios artículos para excluirlos de una vez ---------- */
+let modoSel = false, selR = new Set(), visiblesR = [];
+function alternarSel(id) { selR.has(id) ? selR.delete(id) : selR.add(id); renderR() }
+function barraSel() {
+  const bar = $("#sel-bar"); if (!bar) return;
+  bar.hidden = !modoSel;
+  if (!modoSel) return;
+  const pend = [...selR].filter(c => (R.find(r => r.codigo === c) || {}).estadoK === "pend").length;
+  $("#sel-n").textContent = `${selR.size} seleccionado${selR.size === 1 ? "" : "s"}${selR.size && pend < selR.size ? ` (${pend} en Fase 1)` : ""}`;
+  $("#sel-excl").disabled = !pend;
+}
+$("#sel-btn").onclick = () => {
+  if (!(rol && rol.admin)) { toast("Para excluir varios a la vez entra con la clave de administración."); return }
+  modoSel = !modoSel; selR.clear(); $("#sel-btn").textContent = modoSel ? "✕ Terminar selección" : "☑ Seleccionar varios"; renderR();
+};
+$("#sel-todos").onclick = () => { const todos = visiblesR.every(c => selR.has(c)); visiblesR.forEach(c => todos ? selR.delete(c) : selR.add(c)); renderR() };
+$("#sel-excl").onclick = () => {
+  // Solo los que están en Fase 1 (pendientes): los demás ya tienen una decisión
+  const lista = [...selR].map(c => R.find(r => r.codigo === c)).filter(r => r && r.estadoK === "pend");
+  const motivo = $("#sel-motivo").value === "__otro" ? $("#sel-otro").value.trim() : $("#sel-motivo").value;
+  if (!lista.length) { toast("Selecciona artículos que estén pendientes de cribado (Fase 1)."); return }
+  if (!motivo) { toast("Elige o escribe el motivo de exclusión."); return }
+  const b = $("#sel-excl");
+  if (!b.dataset.armed) { b.dataset.armed = 1; b.textContent = `Toca otra vez para excluir ${lista.length}`; setTimeout(() => { delete b.dataset.armed; b.textContent = "✗ Excluir por título/resumen" }, 4000); return }
+  delete b.dataset.armed; b.textContent = "✗ Excluir por título/resumen";
+  lista.forEach(r => { r.estadoK = "exta"; r.estado = estadoLabel("exta"); r.motivo = motivo; colaCrib.push({ ...r }) });
+  procesarCola();
+  toast(`${lista.length} artículo${lista.length === 1 ? "" : "s"} excluido${lista.length === 1 ? "" : "s"} por título/resumen («${motivo}»). Se están guardando.`, 5000);
+  selR.clear(); renderR(); renderP();
+};
+$("#sel-motivo").onchange = () => { $("#sel-otro").hidden = $("#sel-motivo").value !== "__otro" };
 // Une cada duplicado con su original (mismo DOI o mismo título)
 function indiceDuplicados() {
   const orig = new Map(), de = {}, copias = {};
@@ -643,6 +678,7 @@ function resaltar(texto) {
 
 /* ---------- Cribado: artículo por artículo ---------- */
 const MOTIVOS = ["No es en Uruguay", "No es agua de consumo humano", "Agua recreativa", "No evalúa salud humana", "Salud animal o estudio en animales", "Contaminante fuera del alcance", "Diseño no elegible", "No es un estudio original"];
+fill($("#sel-motivo"), [["", "Motivo de exclusión…"], ...MOTIVOS.map(m => [m, m]), ["__otro", "Otro motivo…"]]);
 let cribActual = null, cribHist = [], cribSaltados = new Set(), cribRevisar = null;
 // Los saltados se recuerdan en el dispositivo (por persona) hasta que se deciden
 const claveSaltados = () => "saltados:" + ((rol && rol.revisor) || "admin");
