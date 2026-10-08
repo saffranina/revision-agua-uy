@@ -182,6 +182,7 @@ $("#k-salir").onclick = () => { clave = ""; store.set("clave", null); store.set(
 /* ---------- Pestañas ---------- */
 document.querySelectorAll("nav.tabs button").forEach(b => b.onclick = () => show(b.dataset.tab));
 function show(tab) {
+  if (tab !== "referencias" && typeof soloIds !== "undefined" && soloIds) { soloIds = null; palabraAuto = ""; selR.clear(); modoSel = false; const sb = $("#sel-btn"); if (sb) sb.textContent = "☑ Seleccionar varios"; const ar = $("#auto-crib-res"); if (ar) ar.hidden = true }
   document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === tab));
   document.querySelectorAll("section.view").forEach(s => s.hidden = s.id !== "v-" + tab);
   store.set("tab", tab);
@@ -226,14 +227,28 @@ function renderR() {
     (!q || [r.codigo, r.titulo, r.autores, r.doi, r.notas, r.tema, r.revista].join(" ").toLowerCase().includes(q)) &&
     (!ft || (ft === "ninguno" ? !temasDe(r).length : temasDe(r).some(x => x.k === ft))) && (!soloIds || soloIds.has(r.codigo)));
   if (!R.length) { el.innerHTML = `<div class="empty">Sin referencias todavía.${clave ? " Agrega cada artículo que salga de tus búsquedas y ve cambiando su estado a medida que lo revisas." : ""}</div>`; return }
-  if (!rows.length) { el.innerHTML = `<div class="empty">Ninguna referencia coincide con el filtro.</div>`; $("#pag-r").innerHTML = ""; visiblesR = []; barraSel(); return }
+  // Aviso visible cuando hay filtros puestos, con un botón para ver todo de nuevo
+  const filtrosOn = [q, st, fb, ft].some(Boolean) || soloIds;
+  const aviso = $("#filtro-aviso");
+  if (aviso) {
+    aviso.hidden = !filtrosOn;
+    aviso.innerHTML = filtrosOn ? `<span>${soloIds ? "Mostrando <b>solo las coincidencias del auto-cribado</b>" : "Hay filtros puestos"}: se ven ${rows.length} de ${R.length} referencias.</span> <button type="button" class="btn ghost" id="ver-todas">Ver todas</button>` : "";
+    const vt = $("#ver-todas");
+    if (vt) vt.onclick = () => {
+      $("#f-text").value = ""; $("#f-estado").value = ""; $("#f-busq").value = ""; $("#f-tema").value = "";
+      if (soloIds) { soloIds = null; palabraAuto = ""; selR.clear(); modoSel = false; $("#sel-btn").textContent = "☑ Seleccionar varios"; $("#auto-crib-res").hidden = true }
+      paginaR = 0; renderR();
+    };
+  }
+  const pag = $("#pag-r") || { innerHTML: "", querySelectorAll: () => [] };
+  if (!rows.length) { el.innerHTML = `<div class="empty">Ninguna referencia coincide con el filtro.</div>`; pag.innerHTML = ""; visiblesR = []; barraSel(); return }
   // De a 50 por página
   const paginas = Math.ceil(rows.length / POR_PAGINA); paginaR = Math.min(paginaR, paginas - 1);
   const pagina = rows.slice(paginaR * POR_PAGINA, (paginaR + 1) * POR_PAGINA);
-  $("#pag-r").innerHTML = paginas > 1 ? `<button type="button" class="btn ghost" data-pag="-1"${paginaR ? "" : " disabled"}>‹ Anterior</button>
+  pag.innerHTML = paginas > 1 ? `<button type="button" class="btn ghost" data-pag="-1"${paginaR ? "" : " disabled"}>‹ Anterior</button>
     <span>Página ${paginaR + 1} de ${paginas} · ${rows.length} artículos</span>
     <button type="button" class="btn ghost" data-pag="1"${paginaR < paginas - 1 ? "" : " disabled"}>Siguiente ›</button>` : `<span class="meta">${rows.length} artículo${rows.length === 1 ? "" : "s"}</span>`;
-  $("#pag-r").querySelectorAll("[data-pag]").forEach(b => b.onclick = () => { paginaR += Number(b.dataset.pag); renderR(); $("#list-r").scrollIntoView({ block: "start" }) });
+  pag.querySelectorAll("[data-pag]").forEach(b => b.onclick = () => { paginaR += Number(b.dataset.pag); renderR(); $("#list-r").scrollIntoView({ block: "start" }) });
   el.innerHTML = pagina.map(r => {
     const link = safeUrl(r.link) || doiUrl(r.doi);
     const fechas = [r.creado ? "Registrada " + fdate(r.creado) : "", r.fechaBusqueda ? `Buscada ${fdate(r.fechaBusqueda)} en ${r.base}` : "",
