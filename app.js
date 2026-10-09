@@ -77,9 +77,16 @@ async function cargar(silencioso) {
     $("#status").textContent = `Sin conexión con la planilla: ${e.message}.`;
   } finally { cargando = false }
 }
+// Las decisiones que todavía están en la fila para guardarse se muestran igual (si no, al recargar parecen perdidas)
+function superponerPendientes() {
+  const pend = new Map(colaCrib.filter(x => !x.doble && x.codigo).map(x => [x.codigo, x]));
+  if (!pend.size) return;
+  R = R.map(r => { const x = pend.get(r.codigo); return x ? { ...r, estadoK: x.estadoK, estado: x.estado, motivo: x.motivo, notas: x.notas, tema: x.tema } : r });
+}
 function aplicar(j) {
   B = (j.busquedas || []).sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
   R = (j.referencias || []).map(r => ({ ...r, estadoK: estadoKey(r.estado) })).sort((a, b) => String(b.codigo).localeCompare(String(a.codigo)));
+  superponerPendientes();
   H = j.historial || [];
   ACU = j.acuerdo || null;
   PROT = Object.fromEntries((j.protocolo || []).map(x => [x.clave, x.valor]));
@@ -896,6 +903,18 @@ async function procesarCola() {
       }
       continue;
     }
+    // En lote: hasta 50 decisiones seguidas en un solo pedido (si el motor ya tiene «guardarVarias»)
+    if (!procesarCola.sinLote) {
+      const lote = [];
+      for (const x of colaCrib) { if (x.doble || lote.length >= 50) break; lote.push(x) }
+      try {
+        await api("guardarVarias", { referencias: lote.map(x => ({ codigo: x.codigo, estado: x.estadoK, motivo: x.motivo || "", notas: x.notas || "", tema: x.tema || "" })) });
+        colaCrib.splice(0, lote.length); continue;
+      } catch (e) {
+        if (e.message === "Acción desconocida.") procesarCola.sinLote = true;
+        else { toast("No se pudo guardar un grupo de decisiones: " + e.message + ". Reintento en unos segundos.", 5000); await new Promise(ok => setTimeout(ok, 5000)); continue }
+      }
+    }
     try {
       await api("guardarReferencia", { codigo: r.codigo, titulo: r.titulo, autores: r.autores, anio: r.anio, revista: r.revista, doi: r.doi,
         link: r.link, resumen: r.resumen, busqueda: r.busqueda, estado: r.estadoK, motivo: r.motivo, tema: r.tema, notas: r.notas, uruguay: r.uruguay });
@@ -909,7 +928,13 @@ async function procesarCola() {
   if (colaCrib.length) return;
   await cargar(true); contarConflictos();
 }
-function actualizarGuardado() { $("#c-guard").textContent = colaCrib.length ? (navigator.onLine ? `Guardando ${colaCrib.length}…` : `📴 ${colaCrib.length} para guardar cuando vuelva internet`) : "✓ Todo guardado" }
+function actualizarGuardado() {
+  $("#c-guard").textContent = colaCrib.length ? (navigator.onLine ? `Guardando ${colaCrib.length}…` : `📴 ${colaCrib.length} para guardar cuando vuelva internet`) : "✓ Todo guardado";
+  const g = $("#guard-global"); if (!g) return;
+  g.hidden = !colaCrib.length;
+  g.textContent = colaCrib.length ? (navigator.onLine ? `⏳ Guardando ${colaCrib.length} decisi${colaCrib.length === 1 ? "ón" : "ones"} en la planilla… no cierres la página` : `📴 ${colaCrib.length} decisiones guardadas en este dispositivo: se suben cuando vuelva internet`) : "";
+}
+window.addEventListener("beforeunload", e => { if (colaCrib.length) { e.preventDefault(); e.returnValue = "" } });
 $("#crib-btn").onclick = abrirCrib;
 $("#c-cerrar").onclick = () => $("#dlg-c").close();
 $("#c-fase").onchange = () => { cribActual = null; cribRevisar = null; renderCrib() };

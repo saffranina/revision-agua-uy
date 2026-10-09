@@ -170,6 +170,7 @@ function doPost(e) {
       case 'guardarBusqueda': return json_({ ok: true, id: guardarBusqueda_(d) });
       case 'borrarBusqueda': borrarFila_('Busquedas', 'id', d.id); historial_(d.id, 'Búsqueda eliminada', ''); return json_({ ok: true });
       case 'guardarReferencia': return json_({ ok: true, ...guardarReferencia_(d, rol) });
+      case 'guardarVarias': return json_({ ok: true, ...guardarVarias_(d, rol) });
       case 'importarReferencias': return json_({ ok: true, ...importarReferencias_(d) });
       case 'traerUrl': return json_({ ok: true, ...traerUrl_(d.url) });
       case 'borrarReferencia':
@@ -272,6 +273,36 @@ function guardarReferencia_(d, rol) {
   if (nueva) historial_(codigo, 'Registrada', estadoTxt);
   else if (cambioEstado) historial_(codigo, 'Cambio de estado', previo.estado + ' → ' + estadoTxt);
   return { codigo, aviso };
+}
+
+// Guarda muchas decisiones de cribado de una vez (estado, motivo, notas y tema): lee los códigos una sola vez
+// y anota el historial junto, mucho más rápido que guardar de a una
+function guardarVarias_(d, rol) {
+  const hoja = hoja_('Referencias');
+  const n = hoja.getLastRow() - 1;
+  const idx = new Map(n > 0 ? hoja.getRange(2, 1, n, 1).getDisplayValues().map((v, i) => [v[0], i + 2]) : []);
+  const ahora = ahora_(), hist = [], codigos = [];
+  (d.referencias || []).forEach((x) => {
+    const fila = idx.get(String(x.codigo));
+    if (!fila) return;
+    const previo = leerFila_(hoja, fila);
+    // Los revisores no cambian el estado a mano: eso sale del cribado doble ciego
+    const clave = rol && !rol.admin ? estadoKey_(previo.estado) : (ESTADOS[x.estado] ? x.estado : 'pend');
+    const estadoTxt = ESTADOS[clave], cambio = previo.estado !== estadoTxt;
+    const reg = Object.assign({}, previo, {
+      estado: estadoTxt, motivo: x.motivo == null ? previo.motivo : x.motivo, notas: x.notas == null ? previo.notas : x.notas,
+      tema: x.tema == null ? previo.tema : x.tema, fechaCribado: previo.fechaCribado || (clave !== 'pend' ? ahora : ''),
+      fechaEstado: cambio ? ahora : previo.fechaEstado, actualizado: ahora,
+    });
+    escribirFila_(hoja, fila, reg);
+    if (cambio) hist.push([ahora, x.codigo, 'Cambio de estado', previo.estado + ' → ' + estadoTxt]);
+    codigos.push(x.codigo);
+  });
+  if (hist.length) {
+    const hh = hoja_('Historial');
+    hh.getRange(hh.getLastRow() + 1, 1, hist.length, 4).setNumberFormat('@').setValues(hist);
+  }
+  return { codigos };
 }
 
 // Importa muchas referencias de una vez (desde un archivo RIS, PubMed o XML).

@@ -214,7 +214,8 @@ $("#dl-paquete").onclick = async () => {
 /* ---------- Cribado sin conexión ---------- */
 // Las decisiones pendientes de guardar se recuerdan en el dispositivo y se envían al volver internet
 function guardarColaLocal() { store.set("colaCrib", colaCrib.length ? JSON.stringify(colaCrib) : null) }
-try { const c = JSON.parse(store.get("colaCrib") || "[]"); if (c.length && clave) { colaCrib.push(...c); setTimeout(procesarCola, 1500) } } catch (e) { }
+// Al abrir: retoma lo que quedó sin guardar y lo muestra ya decidido mientras se sube
+try { const c = JSON.parse(store.get("colaCrib") || "[]"); if (c.length && clave) { colaCrib.push(...c); superponerPendientes(); renderAll(); actualizarGuardado(); setTimeout(procesarCola, 1500) } } catch (e) { }
 window.addEventListener("online", () => { toast("Volvió la conexión: guardando lo pendiente…"); if (colaCrib.length) procesarCola(); cargar(true) });
 window.addEventListener("offline", () => toast("Sin conexión: puedes seguir cribando, las decisiones se guardan cuando vuelva internet.", 6000));
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => { });

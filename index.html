@@ -275,6 +275,7 @@ nav.tabs small{font-size:.65em;font-weight:700;text-transform:uppercase;letter-s
 .chip-sug{font:600 .82rem var(--f-body);border:2px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:3px 10px;cursor:pointer}
 .chip-sug.on{background:var(--accent);border-color:var(--accent);color:var(--surface)} .chip-sug b{opacity:.75}
 .auto-uy{display:grid;gap:6px;border-top:1px dashed var(--line);padding-top:10px;margin-top:6px} .auto-uy-chk{display:flex;gap:8px;align-items:flex-start;font-size:.9rem} .auto-uy-chk input{width:auto;margin-top:3px}
+.guard-global{font-weight:800;color:var(--accent)}
 details.cadenas{background:var(--surface);border:2px solid var(--lav);border-radius:16px;padding:8px 12px}
 details.cadenas>summary{cursor:pointer;font-weight:800;color:var(--accent)}
 .cad-grupo{font-family:var(--f-display);font-weight:600;font-size:1rem;margin:14px 0 6px;color:var(--ink)}
@@ -309,6 +310,7 @@ table.chk input{min-width:70px}
       <h1>Agua potable y salud en Uruguay</h1>
       <p>Registro de la revisión sistemática: búsquedas, referencias y cribado PRISMA.</p>
       <div class="status" id="status">Cargando…</div>
+      <div class="status guard-global" id="guard-global" hidden></div>
     </div>
     <button class="mode" id="mode" type="button">🔒 Solo lectura</button>
   </header>
@@ -709,17 +711,17 @@ table.chk input{min-width:70px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="config.js?v=55"></script>
-<script src="autocompletar.js?v=55"></script>
-<script src="importar.js?v=55"></script>
-<script src="prisma.js?v=55"></script>
+<script src="config.js?v=56"></script>
+<script src="autocompletar.js?v=56"></script>
+<script src="importar.js?v=56"></script>
+<script src="prisma.js?v=56"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
-<script src="prioridad.js?v=55"></script>
-<script src="app.js?v=55"></script>
-<script src="estudios.js?v=55"></script>
-<script src="extras.js?v=55"></script>
-<script src="cadenas.js?v=55"></script>
-<script src="buscador.js?v=55"></script>
-<script src="herramientas.js?v=55"></script>
+<script src="prioridad.js?v=56"></script>
+<script src="app.js?v=56"></script>
+<script src="estudios.js?v=56"></script>
+<script src="extras.js?v=56"></script>
+<script src="cadenas.js?v=56"></script>
+<script src="buscador.js?v=56"></script>
+<script src="herramientas.js?v=56"></script>
 </body>
 </html>
