@@ -70,7 +70,7 @@ async function cargar(silencioso) {
       throw new Error(/accounts\.google|ServiceLogin|signin/i.test(texto) ? "el motor pide iniciar sesión (revisa «Quién tiene acceso» en Apps Script)" : `respuesta inesperada del motor (código ${r.status})`);
     }
     if (!j.ok) throw new Error(j.error);
-    aplicar(j);
+    j.__servidor = true; aplicar(j); delete j.__servidor;
     store.set("cache", JSON.stringify(j));
     $("#status").textContent = "Actualizado " + new Date().toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit" });
   } catch (e) {
@@ -78,14 +78,36 @@ async function cargar(silencioso) {
   } finally { cargando = false }
 }
 // Las decisiones que todavía están en la fila para guardarse se muestran igual (si no, al recargar parecen perdidas)
+// Una decisión en la fila vale solo si no quedó vieja: nunca hace retroceder a un artículo
+// (por ejemplo, de «Incluida» a «A texto completo») ni pisa un cambio hecho después en la planilla
+const RANGO = { pend: 0, ft: 1, exta: 1, dup: 1, inc: 2, extc: 2, nr: 2 };
+const fechaUy = s => { const d = new Date(String(s || "").replace(" ", "T") + ":00-03:00"); return isNaN(d) ? 0 : d.getTime() };
+function vigente(x, s) {
+  if (!s) return true;
+  const sk = estadoKey(s.estado);
+  if ((RANGO[sk] ?? 0) > (RANGO[x.estadoK] ?? 0)) return false;
+  if (sk === x.estadoK && (s.motivo || "") === (x.motivo || "")) return false; // ya está así
+  if (x.t && fechaUy(s.actualizado) > x.t + 60000) return false;
+  if (!x.t && sk !== "pend") return false; // decisiones viejas sin fecha: solo si el artículo sigue pendiente
+  return true;
+}
+// Saca de la fila lo que quedó viejo frente a lo que dice la planilla (lista de referencias del servidor)
+function podarCola(refsServidor) {
+  const srv = new Map(refsServidor.map(r => [r.codigo, r]));
+  const antes = colaCrib.length;
+  for (let i = colaCrib.length - 1; i >= 0; i--) { const x = colaCrib[i]; if (!x.doble && x.codigo && !vigente(x, srv.get(x.codigo))) colaCrib.splice(i, 1) }
+  if (colaCrib.length !== antes && typeof guardarColaLocal === "function") guardarColaLocal();
+  return antes - colaCrib.length;
+}
 function superponerPendientes() {
   const pend = new Map(colaCrib.filter(x => !x.doble && x.codigo).map(x => [x.codigo, x]));
   if (!pend.size) return;
-  R = R.map(r => { const x = pend.get(r.codigo); return x ? { ...r, estadoK: x.estadoK, estado: x.estado, motivo: x.motivo, notas: x.notas, tema: x.tema } : r });
+  R = R.map(r => { const x = pend.get(r.codigo); return x && vigente(x, r) ? { ...r, estadoK: x.estadoK, estado: x.estado, motivo: x.motivo, notas: x.notas, tema: x.tema } : r });
 }
 function aplicar(j) {
   B = (j.busquedas || []).sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
   R = (j.referencias || []).map(r => ({ ...r, estadoK: estadoKey(r.estado) })).sort((a, b) => String(b.codigo).localeCompare(String(a.codigo)));
+  if (j.__servidor) podarCola(R);
   superponerPendientes();
   H = j.historial || [];
   ACU = j.acuerdo || null;
@@ -386,7 +408,7 @@ $("#sel-excl").onclick = () => {
   if (!b.dataset.armed) { b.dataset.armed = 1; b.textContent = `Toca otra vez para excluir ${lista.length}`; setTimeout(() => { delete b.dataset.armed; b.textContent = "✗ Excluir por título/resumen" }, 4000); return }
   delete b.dataset.armed; b.textContent = "✗ Excluir por título/resumen";
   const nota = palabraAuto ? `Auto-cribado: excluida por ${/^sin Uruguay/.test(palabraAuto) ? "no mencionar Uruguay ni localidades uruguayas en título ni resumen" : palabraAuto + " en el título"}` : "";
-  lista.forEach(r => { r.estadoK = "exta"; r.estado = estadoLabel("exta"); r.motivo = motivo; if (nota) r.notas = [r.notas, nota].filter(Boolean).join(" · "); colaCrib.push({ ...r }) });
+  lista.forEach(r => { r.estadoK = "exta"; r.estado = estadoLabel("exta"); r.motivo = motivo; if (nota) r.notas = [r.notas, nota].filter(Boolean).join(" · "); colaCrib.push({ ...r, t: Date.now() }) });
   procesarCola();
   toast(`${lista.length} artículo${lista.length === 1 ? "" : "s"} excluido${lista.length === 1 ? "" : "s"} por título/resumen («${motivo}»). Se están guardando.`, 5000);
   selR.clear(); if (soloIds) { soloIds = null; palabraAuto = ""; $("#auto-crib-res").hidden = true } renderR(); renderP();
@@ -886,11 +908,18 @@ function decidir(estado, motivo) {
   cribHist.push({ codigo: r.codigo, estadoK: r.estadoK, estado: r.estado, motivo: r.motivo, notas: r.notas });
   if (motivo === "__quiza") { motivo = ""; r.notas = [r.notas, "Quizás en el cribado por título y resumen"].filter(Boolean).join(" · ") }
   r.estadoK = estado; r.estado = estadoLabel(estado); r.motivo = motivo || "";
-  colaCrib.push({ ...r }); procesarCola();
+  colaCrib.push({ ...r, t: Date.now() }); procesarCola();
   cribActual = null; renderCrib(); renderR(); renderP();
 }
 async function procesarCola() {
   if (procesarCola.activo) return; procesarCola.activo = true;
+  // Antes de guardar, se compara con la planilla actual para no pisar decisiones más nuevas
+  if (colaCrib.some(x => !x.doble)) {
+    try {
+      const r = await fetch(window.API_URL, { cache: "no-store" }); const j = await r.json();
+      if (j.ok) { const quitadas = podarCola(j.referencias || []); if (quitadas) toast(`${quitadas} decisi${quitadas === 1 ? "ón vieja quedó" : "ones viejas quedaron"} sin guardar porque en la planilla esos artículos ya tienen una decisión más nueva.`, 7000) }
+    } catch (e) { procesarCola.activo = false; actualizarGuardado(); setTimeout(procesarCola, 8000); return }
+  }
   while (colaCrib.length) {
     actualizarGuardado(); if (typeof guardarColaLocal === "function") guardarColaLocal();
     if (!navigator.onLine) break; // se retoma con el evento «online»
@@ -982,7 +1011,7 @@ function deshacer() {
   }
   const r = R.find(x => x.codigo === h.codigo); if (!r) return;
   Object.assign(r, { estadoK: h.estadoK, estado: h.estado, motivo: h.motivo, notas: h.notas });
-  colaCrib.push({ ...r }); procesarCola();
+  colaCrib.push({ ...r, t: Date.now() }); procesarCola();
   if ($("#c-fase").value !== h.estadoK) $("#c-fase").value = h.estadoK;
   cribActual = r; renderCrib(); renderR(); renderP();
 }

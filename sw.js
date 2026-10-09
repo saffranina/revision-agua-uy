@@ -1,7 +1,7 @@
 // Permite abrir la página sin conexión: guarda una copia de los archivos propios.
 // Siempre intenta primero la versión nueva de internet y, si no hay conexión, usa la copia.
 // Los datos de la planilla no pasan por acá (los guarda la página en el dispositivo).
-const CACHE = "revision-agua-uy-v41";
+const CACHE = "revision-agua-uy-v42";
 const ARCHIVOS = ["./", "index.html", "config.js", "app.js", "importar.js", "autocompletar.js", "prisma.js", "prioridad.js", "estudios.js", "autoextraccion.js", "extras.js", "cadenas.js", "buscador.js", "herramientas.js",
   "manifest.webmanifest", "img/logo-128.png", "img/logo-192.png", "img/apple-touch-icon.png"];
 
