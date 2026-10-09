@@ -276,6 +276,7 @@ nav.tabs small{font-size:.65em;font-weight:700;text-transform:uppercase;letter-s
 .chip-sug.on{background:var(--accent);border-color:var(--accent);color:var(--surface)} .chip-sug b{opacity:.75}
 .auto-uy{display:grid;gap:6px;border-top:1px dashed var(--line);padding-top:10px;margin-top:6px} .auto-uy-chk{display:flex;gap:8px;align-items:flex-start;font-size:.9rem} .auto-uy-chk input{width:auto;margin-top:3px}
 .guard-global{font-weight:800;color:var(--accent)}
+.auto-ext{background:color-mix(in srgb, var(--yellow) 55%, var(--surface))!important}
 details.cadenas{background:var(--surface);border:2px solid var(--lav);border-radius:16px;padding:8px 12px}
 details.cadenas>summary{cursor:pointer;font-weight:800;color:var(--accent)}
 .cad-grupo{font-family:var(--f-display);font-weight:600;font-size:1rem;margin:14px 0 6px;color:var(--ink)}
@@ -668,6 +669,8 @@ table.chk input{min-width:70px}
   <div class="bar"><h2 class="grow" id="dlg-e-title">Extracción de datos</h2><button type="button" class="btn ghost" data-close>Cerrar</button></div>
   <span class="note" id="e-ref"></span>
   <span class="note" id="e-estado"></span>
+  <div class="bar"><button type="button" class="btn" id="e-auto">✨ Completar automáticamente</button><span class="note grow">Busca el artículo (resumen y, si es de acceso abierto, el texto completo) y llena los campos vacíos. Después los revisas y editas.</span></div>
+  <div id="e-auto-res" class="oa" hidden></div>
   <span class="lbl">Categoría de exposición (para el mapa de evidencia)</span>
   <div class="chips2" id="e-expcat"></div>
   <span class="lbl">Categoría de efecto en salud</span>
@@ -711,17 +714,18 @@ table.chk input{min-width:70px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="config.js?v=56"></script>
-<script src="autocompletar.js?v=56"></script>
-<script src="importar.js?v=56"></script>
-<script src="prisma.js?v=56"></script>
+<script src="config.js?v=57"></script>
+<script src="autocompletar.js?v=57"></script>
+<script src="importar.js?v=57"></script>
+<script src="prisma.js?v=57"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
-<script src="prioridad.js?v=56"></script>
-<script src="app.js?v=56"></script>
-<script src="estudios.js?v=56"></script>
-<script src="extras.js?v=56"></script>
-<script src="cadenas.js?v=56"></script>
-<script src="buscador.js?v=56"></script>
-<script src="herramientas.js?v=56"></script>
+<script src="prioridad.js?v=57"></script>
+<script src="app.js?v=57"></script>
+<script src="estudios.js?v=57"></script>
+<script src="autoextraccion.js?v=57"></script>
+<script src="extras.js?v=57"></script>
+<script src="cadenas.js?v=57"></script>
+<script src="buscador.js?v=57"></script>
+<script src="herramientas.js?v=57"></script>
 </body>
 </html>
