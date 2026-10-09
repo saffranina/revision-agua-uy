@@ -366,6 +366,28 @@ $("#auto-uy-go").onclick = () => {
   const lista = conSin ? c.conResumen.concat(c.sinResumen) : c.conResumen;
   mostrarCoincidencias(lista, `sin Uruguay ni localidades uruguayas en el título ni en el resumen${conSin ? " (incluye los que no tienen resumen)" : ""}`, "No es en Uruguay");
 };
+/* ---------- Auto-cribado: sin agua en título ni resumen ---------- */
+// Palabras de agua en castellano, inglés y portugués (incluye pozos, acuíferos, red de OSE, ríos y lagunas,
+// para no excluir por error estudios de fuentes de agua)
+const PALABRAS_AGUA = ["agua*", "agua*", "water*", "agua*", "potab*", "drinking", "tap", "canilla*", "grifo*", "pozo*", "wells", "well water", "groundwater",
+  "acuifer*", "aquifer*", "subterran*", "aljibe*", "cistern*", "hidric*", "hydric*", "hidrolog*", "hydrolog*", "abastecimiento", "ose", "potabiliz*",
+  "rio", "rios", "river*", "laguna*", "lago*", "lake*", "embalse*", "reservoir*", "cuenca*", "watershed*", "arroyo*", "saneamiento", "sanitation"];
+const reAgua = [...new Set(PALABRAS_AGUA)].map(w => w.endsWith("*") ? new RegExp("\\b" + w.slice(0, -1)) : new RegExp("\\b" + w + "\\b"));
+const mencionaAgua = r => reAgua.some(re => re.test(normT([r.titulo, r.resumen].join(" "))));
+function contarSinAgua() {
+  const pend = R.filter(r => r.estadoK === "pend" && !mencionaAgua(r));
+  return { conResumen: pend.filter(r => (r.resumen || "").trim().length > 40), sinResumen: pend.filter(r => (r.resumen || "").trim().length <= 40) };
+}
+$("#auto-agua-go").onclick = () => {
+  if (!(rol && rol.admin)) { toast("El auto-cribado lo hace quien entra con la clave de administración."); return }
+  const c = contarSinAgua(), conSin = $("#auto-agua-sinres").checked;
+  mostrarCoincidencias(conSin ? c.conResumen.concat(c.sinResumen) : c.conResumen, `sin la palabra agua (ni pozo, acuífero, río…) en el título ni en el resumen${conSin ? " (incluye los que no tienen resumen)" : ""}`, "No es agua de consumo humano");
+};
+function infoAgua() {
+  const el = $("#auto-agua-info"); if (!el) return;
+  const c = contarSinAgua();
+  el.textContent = `Pendientes sin mención de agua: ${c.conResumen.length} con resumen${c.sinResumen.length ? ` y ${c.sinResumen.length} sin resumen (ojo: de esos solo se ve el título)` : ""}.`;
+}
 function infoUy() {
   const el = $("#auto-uy-info"); if (!el) return;
   const c = contarSinUy();
@@ -396,7 +418,7 @@ function renderSugerencias() {
     $("#auto-crib-in").value = lista.join(", "); renderSugerencias();
   });
 }
-$("#auto-crib").addEventListener("toggle", () => { if ($("#auto-crib").open) { renderSugerencias(); infoUy() } });
+$("#auto-crib").addEventListener("toggle", () => { if ($("#auto-crib").open) { renderSugerencias(); infoUy(); infoAgua() } });
 $("#sel-todos").onclick = () => { const todos = visiblesR.every(c => selR.has(c)); visiblesR.forEach(c => todos ? selR.delete(c) : selR.add(c)); renderR() };
 $("#sel-excl").onclick = () => {
   // Solo los que están en Fase 1 (pendientes): los demás ya tienen una decisión
@@ -407,7 +429,7 @@ $("#sel-excl").onclick = () => {
   const b = $("#sel-excl");
   if (!b.dataset.armed) { b.dataset.armed = 1; b.textContent = `Toca otra vez para excluir ${lista.length}`; setTimeout(() => { delete b.dataset.armed; b.textContent = "✗ Excluir por título/resumen" }, 4000); return }
   delete b.dataset.armed; b.textContent = "✗ Excluir por título/resumen";
-  const nota = palabraAuto ? `Auto-cribado: excluida por ${/^sin Uruguay/.test(palabraAuto) ? "no mencionar Uruguay ni localidades uruguayas en título ni resumen" : palabraAuto + " en el título"}` : "";
+  const nota = palabraAuto ? `Auto-cribado: excluida por ${/^sin Uruguay/.test(palabraAuto) ? "no mencionar Uruguay ni localidades uruguayas en título ni resumen" : /^sin la palabra agua/.test(palabraAuto) ? "no mencionar agua (ni pozo, acuífero, río…) en título ni resumen" : palabraAuto + " en el título"}` : "";
   lista.forEach(r => { r.estadoK = "exta"; r.estado = estadoLabel("exta"); r.motivo = motivo; if (nota) r.notas = [r.notas, nota].filter(Boolean).join(" · "); colaCrib.push({ ...r, t: Date.now() }) });
   procesarCola();
   toast(`${lista.length} artículo${lista.length === 1 ? "" : "s"} excluido${lista.length === 1 ? "" : "s"} por título/resumen («${motivo}»). Se están guardando.`, 5000);
