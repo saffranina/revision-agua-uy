@@ -303,16 +303,71 @@ $("#auto-crib-go").onclick = () => {
   if (!(rol && rol.admin)) { toast("El auto-cribado lo hace quien entra con la clave de administración."); return }
   const palabras = $("#auto-crib-in").value.split(",").map(x => x.trim()).filter(x => x.replace(/\*/g, "").length > 1);
   if (!palabras.length) { toast("Escribe una o más palabras, separadas por coma."); return }
-  const lista = coincidenTitulo(palabras);
-  const box = $("#auto-crib-res"); box.hidden = false;
-  if (!lista.length) { box.innerHTML = `<span>Ningún artículo pendiente tiene ${palabras.length === 1 ? "esa palabra" : "esas palabras"} en el título.</span>`; return }
-  palabraAuto = palabras.join(", ");
-  modoSel = true; $("#sel-btn").textContent = "✕ Terminar selección";
-  selR = new Set(lista.map(r => r.codigo)); soloIds = new Set(selR); paginaR = 0;
-  box.innerHTML = `<span><b>${lista.length}</b> artículo${lista.length === 1 ? "" : "s"} pendiente${lista.length === 1 ? "" : "s"} con «${esc(palabraAuto)}» en el título. Quedaron seleccionados y la lista muestra solo esos: <b>revísalos</b>, desmarca los que no correspondan, elige el motivo y toca «Excluir por título/resumen». Para salir sin excluir, «Terminar selección».</span>`;
-  renderR();
+  mostrarCoincidencias(coincidenTitulo(palabras), `con «${palabras.join(", ")}» en el título`);
 };
 $("#auto-crib-in").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("#auto-crib-go").click() } });
+
+// Seleccionar coincidencias y mostrarlas para revisar antes de excluir (lo usan las palabras y el botón de Uruguay)
+function mostrarCoincidencias(lista, descripcion, motivo) {
+  const box = $("#auto-crib-res"); box.hidden = false;
+  if (!lista.length) { box.innerHTML = `<span>No hay artículos pendientes ${descripcion}.</span>`; return }
+  palabraAuto = descripcion.replace(/^con /, "");
+  modoSel = true; $("#sel-btn").textContent = "✕ Terminar selección";
+  selR = new Set(lista.map(r => r.codigo)); soloIds = new Set(selR); paginaR = 0;
+  if (motivo) { $("#sel-motivo").value = motivo; $("#sel-otro").hidden = true }
+  box.innerHTML = `<span><b>${lista.length}</b> artículo${lista.length === 1 ? "" : "s"} pendiente${lista.length === 1 ? "" : "s"} ${esc(descripcion)}. Quedaron seleccionados y la lista muestra solo esos: <b>revísalos</b>, desmarca los que no correspondan, revisa el motivo y toca «Excluir por título/resumen» (dos veces). Para salir sin excluir, «Terminar selección».</span>`;
+  renderR(); $("#list-r").scrollIntoView({ block: "start" });
+}
+
+/* ---------- Auto-cribado: sin Uruguay en título ni resumen ---------- */
+// Uruguay, gentilicios, los 19 departamentos, ciudades, cuencas e instituciones del país
+const LUGARES_UY = ["urugua*", "oriental del uruguay", "montevide*", "artigas", "canelones", "cerro largo", "colonia del sacramento", "durazno", "flores", "florida",
+  "lavalleja", "maldonado", "paysandu", "rio negro", "rivera", "rocha", "salto", "san jose de mayo", "soriano", "tacuarembo", "treinta y tres",
+  "punta del este", "las piedras", "ciudad de la costa", "melo", "minas", "mercedes", "fray bentos", "trinidad", "carmelo", "young", "dolores", "pando",
+  "barros blancos", "santa lucia", "laguna del sauce", "laguna merin", "rio de la plata", "udelar", "universidad de la republica", "ose", "inia"];
+const reLugares = LUGARES_UY.map(w => w.endsWith("*") ? new RegExp("\\b" + w.slice(0, -1)) : new RegExp("\\b" + w + "\\b"));
+const mencionaUy = r => /^Autores con afiliaci[oó]n en Uruguay/i.test(r.uruguay || "") || reLugares.some(re => re.test(normT([r.titulo, r.resumen, r.revista].join(" "))));
+function contarSinUy() {
+  const pend = R.filter(r => r.estadoK === "pend" && !mencionaUy(r));
+  return { conResumen: pend.filter(r => (r.resumen || "").trim().length > 40), sinResumen: pend.filter(r => (r.resumen || "").trim().length <= 40) };
+}
+$("#auto-uy-go").onclick = () => {
+  if (!(rol && rol.admin)) { toast("El auto-cribado lo hace quien entra con la clave de administración."); return }
+  const c = contarSinUy(), conSin = $("#auto-uy-sinres").checked;
+  const lista = conSin ? c.conResumen.concat(c.sinResumen) : c.conResumen;
+  mostrarCoincidencias(lista, `sin Uruguay ni localidades uruguayas en el título ni en el resumen${conSin ? " (incluye los que no tienen resumen)" : ""}`, "No es en Uruguay");
+};
+function infoUy() {
+  const el = $("#auto-uy-info"); if (!el) return;
+  const c = contarSinUy();
+  el.textContent = `Pendientes sin mención de Uruguay: ${c.conResumen.length} con resumen${c.sinResumen.length ? ` y ${c.sinResumen.length} sin resumen (ojo: de esos solo se ve el título)` : ""}.`;
+}
+
+/* ---------- Sugerencias de palabras para el auto-cribado ---------- */
+// Palabras que suelen indicar que un estudio no entra; se muestran solo las que aparecen en títulos pendientes, con cuántos
+const SUGERENCIAS = [
+  ["Otros países", ["argentin*", "brasil*", "brazil*", "chile*", "mexic*", "méxico", "paraguay*", "peru*", "perú", "colombia*", "bolivia*", "ecuador*", "venezuela*", "cuba*", "españa", "spain", "china", "india", "estados unidos", "usa"]],
+  ["Animales", ["ratas", "rats", "ratones", "mice", "murin*", "bovin*", "cattle", "ganado", "vacas", "peces", "fish", "aves", "poultry", "pollos", "cerdos", "pigs", "porcin*", "ovin*", "sheep", "perros", "dogs", "caballos", "equin*", "abejas", "bees"]],
+  ["Agua que no se bebe", ["playa*", "beach*", "recreativ*", "recreational", "balneario*", "piscina*", "swimming", "bañistas", "aguas residuales", "wastewater", "efluente*", "effluent*", "riego", "irrigation", "acuicultura", "aquaculture"]],
+  ["Otros enfoques", ["suelo*", "soil*", "sediment*", "in vitro", "cell line*", "células", "cultivo celular", "planta*", "plants", "cultivos", "crops", "veterinari*"]],
+];
+function renderSugerencias() {
+  const el = $("#auto-sug"); if (!el) return;
+  const titulos = R.filter(r => r.estadoK === "pend").map(r => normT(r.titulo));
+  const cuenta = w => { const n = normT(w); const re = n.endsWith("*") ? new RegExp("\\b" + n.slice(0, -1)) : new RegExp("\\b" + n + "\\b"); return titulos.filter(t => re.test(t)).length };
+  const puestas = new Set($("#auto-crib-in").value.split(",").map(x => normT(x.trim())).filter(Boolean));
+  el.innerHTML = SUGERENCIAS.map(([g, ws]) => {
+    const con = ws.map(w => [w, cuenta(w)]).filter(([, n]) => n).sort((a, b) => b[1] - a[1]);
+    return con.length ? `<div class="sug-grupo"><span class="meta">${esc(g)}:</span> ${con.map(([w, n]) => `<button type="button" class="chip-sug${puestas.has(normT(w)) ? " on" : ""}" data-sug="${esc(w)}">${esc(w)} <b>${n}</b></button>`).join("")}</div>` : "";
+  }).join("") || '<span class="meta">No hay sugerencias: ninguna de las palabras típicas aparece en los títulos pendientes.</span>';
+  el.querySelectorAll("[data-sug]").forEach(b => b.onclick = () => {
+    const w = b.dataset.sug, lista = $("#auto-crib-in").value.split(",").map(x => x.trim()).filter(Boolean);
+    const i = lista.findIndex(x => normT(x) === normT(w));
+    i >= 0 ? lista.splice(i, 1) : lista.push(w);
+    $("#auto-crib-in").value = lista.join(", "); renderSugerencias();
+  });
+}
+$("#auto-crib").addEventListener("toggle", () => { if ($("#auto-crib").open) { renderSugerencias(); infoUy() } });
 $("#sel-todos").onclick = () => { const todos = visiblesR.every(c => selR.has(c)); visiblesR.forEach(c => todos ? selR.delete(c) : selR.add(c)); renderR() };
 $("#sel-excl").onclick = () => {
   // Solo los que están en Fase 1 (pendientes): los demás ya tienen una decisión
@@ -323,7 +378,7 @@ $("#sel-excl").onclick = () => {
   const b = $("#sel-excl");
   if (!b.dataset.armed) { b.dataset.armed = 1; b.textContent = `Toca otra vez para excluir ${lista.length}`; setTimeout(() => { delete b.dataset.armed; b.textContent = "✗ Excluir por título/resumen" }, 4000); return }
   delete b.dataset.armed; b.textContent = "✗ Excluir por título/resumen";
-  const nota = palabraAuto ? `Auto-cribado: excluida por «${palabraAuto}» en el título` : "";
+  const nota = palabraAuto ? `Auto-cribado: excluida por ${/^sin Uruguay/.test(palabraAuto) ? "no mencionar Uruguay ni localidades uruguayas en título ni resumen" : palabraAuto + " en el título"}` : "";
   lista.forEach(r => { r.estadoK = "exta"; r.estado = estadoLabel("exta"); r.motivo = motivo; if (nota) r.notas = [r.notas, nota].filter(Boolean).join(" · "); colaCrib.push({ ...r }) });
   procesarCola();
   toast(`${lista.length} artículo${lista.length === 1 ? "" : "s"} excluido${lista.length === 1 ? "" : "s"} por título/resumen («${motivo}»). Se están guardando.`, 5000);

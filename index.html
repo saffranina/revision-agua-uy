@@ -271,6 +271,10 @@ nav.tabs small{font-size:.65em;font-weight:700;text-transform:uppercase;letter-s
 .sel-bar .grow{flex:1 1 140px;font-weight:700} .sel-bar select,.sel-bar input{flex:1 1 180px}
 .item .sel-chk{width:20px;height:20px;margin:2px 8px 0 0;flex:0 0 auto} .item.sel{outline:2px solid var(--accent)}
 .pager{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;margin:12px 0}
+.sug{display:grid;gap:6px;margin:4px 0 10px} .sug-grupo{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip-sug{font:600 .82rem var(--f-body);border:2px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:3px 10px;cursor:pointer}
+.chip-sug.on{background:var(--accent);border-color:var(--accent);color:var(--surface)} .chip-sug b{opacity:.75}
+.auto-uy{display:grid;gap:6px;border-top:1px dashed var(--line);padding-top:10px;margin-top:6px} .auto-uy-chk{display:flex;gap:8px;align-items:flex-start;font-size:.9rem} .auto-uy-chk input{width:auto;margin-top:3px}
 details.cadenas{background:var(--surface);border:2px solid var(--lav);border-radius:16px;padding:8px 12px}
 details.cadenas>summary{cursor:pointer;font-weight:800;color:var(--accent)}
 .cad-grupo{font-family:var(--f-display);font-weight:600;font-size:1rem;margin:14px 0 6px;color:var(--ink)}
@@ -418,6 +422,15 @@ table.chk input{min-width:70px}
     <details class="cadenas edit-only" id="auto-crib"><summary>🔤 Auto-cribado: excluir por palabras en el título</summary>
       <p class="note">Escribe palabras que, si aparecen en el título, significan que el artículo no entra (por ejemplo: <i>ratas, ratones, ganado, peces, playa, recreativa, Argentina</i>). Separa con coma; con asterisco busca el comienzo (<i>bovin*</i> encuentra bovino, bovinos, bovina). Solo mira los <b>pendientes de la Fase 1</b>. No excluye nada solo: te los muestra seleccionados para que los revises antes.</p>
       <div class="bar"><input class="grow" id="auto-crib-in" placeholder="ratas, ratones, ganado, bovin*, playa"><button type="button" class="btn" id="auto-crib-go">Buscar coincidencias</button></div>
+      <span class="lbl">Sugerencias (tócalas para agregarlas; el número es cuántos títulos pendientes la tienen)</span>
+      <div id="auto-sug" class="sug"></div>
+      <div class="auto-uy">
+        <b>🇺🇾 Sin Uruguay</b>
+        <p class="note">Selecciona los pendientes que no nombran Uruguay, ninguno de sus departamentos, ciudades, cuencas (Santa Lucía, Laguna del Sauce…) ni instituciones (Udelar, OSE, INIA) en el título ni en el resumen, y que tampoco tienen autores con afiliación uruguaya. Te los muestra antes de excluir, con el motivo «No es en Uruguay».</p>
+        <span class="note" id="auto-uy-info"></span>
+        <label class="auto-uy-chk"><input type="checkbox" id="auto-uy-sinres"> Incluir también los que no tienen resumen (solo se mira el título: más riesgo de excluir algo uruguayo)</label>
+        <button type="button" class="btn" id="auto-uy-go">Buscar los que no mencionan Uruguay</button>
+      </div>
       <div id="auto-crib-res" class="oa" hidden></div>
     </details>
     <div class="sel-bar" id="sel-bar" hidden>
@@ -696,17 +709,17 @@ table.chk input{min-width:70px}
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="config.js?v=54"></script>
-<script src="autocompletar.js?v=54"></script>
-<script src="importar.js?v=54"></script>
-<script src="prisma.js?v=54"></script>
+<script src="config.js?v=55"></script>
+<script src="autocompletar.js?v=55"></script>
+<script src="importar.js?v=55"></script>
+<script src="prisma.js?v=55"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
-<script src="prioridad.js?v=54"></script>
-<script src="app.js?v=54"></script>
-<script src="estudios.js?v=54"></script>
-<script src="extras.js?v=54"></script>
-<script src="cadenas.js?v=54"></script>
-<script src="buscador.js?v=54"></script>
-<script src="herramientas.js?v=54"></script>
+<script src="prioridad.js?v=55"></script>
+<script src="app.js?v=55"></script>
+<script src="estudios.js?v=55"></script>
+<script src="extras.js?v=55"></script>
+<script src="cadenas.js?v=55"></script>
+<script src="buscador.js?v=55"></script>
+<script src="herramientas.js?v=55"></script>
 </body>
 </html>
