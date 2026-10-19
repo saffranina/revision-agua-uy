@@ -321,10 +321,10 @@ function barraSel() {
   if (!modoSel) return;
   const pend = [...selR].filter(c => (R.find(r => r.codigo === c) || {}).estadoK === "pend").length;
   $("#sel-n").textContent = `${selR.size} seleccionado${selR.size === 1 ? "" : "s"}${selR.size && pend < selR.size ? ` (${pend} en Fase 1)` : ""}`;
-  $("#sel-excl").disabled = !pend;
+  $("#sel-excl").disabled = !pend; $("#sel-ft").disabled = !pend;
 }
 $("#sel-btn").onclick = () => {
-  if (!(rol && rol.admin)) { toast("Para excluir varios a la vez entra con la clave de administración."); return }
+  if (!(rol && rol.admin)) { toast("Para cribar varios a la vez entra con la clave de administración."); return }
   modoSel = !modoSel; selR.clear(); soloIds = null; palabraAuto = ""; $("#auto-crib-res").hidden = true;
   $("#sel-btn").textContent = modoSel ? "✕ Terminar selección" : "☑ Seleccionar varios"; paginaR = 0; renderR();
 };
@@ -445,6 +445,20 @@ $("#sel-excl").onclick = () => {
   procesarCola();
   toast(`${lista.length} artículo${lista.length === 1 ? "" : "s"} excluido${lista.length === 1 ? "" : "s"} por título/resumen («${motivo}»). Se están guardando.`, 5000);
   // En el auto-cribado la lista sigue mostrando los que quedan, para seguir con la página siguiente
+  selR.clear();
+  if (soloIds) { lista.forEach(r => soloIds.delete(r.codigo)); if (!soloIds.size) { soloIds = null; palabraAuto = ""; $("#auto-crib-res").hidden = true } }
+  renderR(); renderP();
+};
+// Pasar varios a Fase 2 (texto completo) de una vez, igual que «✓ Pasa» en el cribado
+$("#sel-ft").onclick = () => {
+  const lista = [...selR].map(c => R.find(r => r.codigo === c)).filter(r => r && r.estadoK === "pend");
+  if (!lista.length) { toast("Selecciona artículos que estén pendientes de cribado (Fase 1)."); return }
+  const b = $("#sel-ft");
+  if (!b.dataset.armed) { b.dataset.armed = 1; b.textContent = `Toca otra vez para pasar ${lista.length} a Fase 2`; setTimeout(() => { delete b.dataset.armed; b.textContent = "✓ Pasa a Fase 2" }, 4000); return }
+  delete b.dataset.armed; b.textContent = "✓ Pasa a Fase 2";
+  lista.forEach(r => { r.estadoK = "ft"; r.estado = estadoLabel("ft"); r.motivo = ""; colaCrib.push({ ...r, t: Date.now() }) });
+  procesarCola();
+  toast(`${lista.length} artículo${lista.length === 1 ? "" : "s"} pasa${lista.length === 1 ? "" : "n"} a Fase 2 (texto completo). Se están guardando.`, 5000);
   selR.clear();
   if (soloIds) { lista.forEach(r => soloIds.delete(r.codigo)); if (!soloIds.size) { soloIds = null; palabraAuto = ""; $("#auto-crib-res").hidden = true } }
   renderR(); renderP();
