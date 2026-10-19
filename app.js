@@ -33,7 +33,7 @@ const claveDec = (codigo, fase) => codigo + "|" + fase;
 let B = [], R = [], H = [], clave = store.get("clave") || "", editB = null, editR = null, pdfFile = null, cargando = false;
 // Lista de Referencias: paginación, selección de varios y auto-cribado (se declaran acá porque show() las usa al abrir)
 const POR_PAGINA = 50;
-let paginaR = 0, soloIds = null, palabraAuto = "", modoSel = false, selR = new Set(), visiblesR = [];
+let paginaR = 0, soloIds = null, palabraAuto = "", modoSel = false, selR = new Set(), visiblesR = [], filasR = [];
 
 function toast(msg, ms = 2800) {
   const t = $("#toast");
@@ -280,7 +280,8 @@ function renderR() {
     };
   }
   const pag = $("#pag-r") || { innerHTML: "", querySelectorAll: () => [] };
-  if (!rows.length) { el.innerHTML = `<div class="empty">Ninguna referencia coincide con el filtro.</div>`; pag.innerHTML = ""; visiblesR = []; barraSel(); return }
+  if (!rows.length) { el.innerHTML = `<div class="empty">Ninguna referencia coincide con el filtro.</div>`; pag.innerHTML = ""; visiblesR = []; filasR = []; barraSel(); return }
+  filasR = rows.map(r => r.codigo);
   // De a 50 por página
   const paginas = Math.ceil(rows.length / POR_PAGINA); paginaR = Math.min(paginaR, paginas - 1);
   const pagina = rows.slice(paginaR * POR_PAGINA, (paginaR + 1) * POR_PAGINA);
@@ -351,7 +352,7 @@ function mostrarCoincidencias(lista, descripcion, motivo) {
   modoSel = true; $("#sel-btn").textContent = "✕ Terminar selección";
   selR = new Set(lista.map(r => r.codigo)); soloIds = new Set(selR); paginaR = 0;
   if (motivo) { $("#sel-motivo").value = motivo; $("#sel-otro").hidden = true }
-  box.innerHTML = `<span><b>${lista.length}</b> artículo${lista.length === 1 ? "" : "s"} pendiente${lista.length === 1 ? "" : "s"} ${esc(descripcion)}. Quedaron seleccionados y la lista muestra solo esos: <b>revísalos</b>, desmarca los que no correspondan, revisa el motivo y toca «Excluir por título/resumen» (dos veces). Para salir sin excluir, «Terminar selección».</span>`;
+  box.innerHTML = `<span><b>${lista.length}</b> artículo${lista.length === 1 ? "" : "s"} pendiente${lista.length === 1 ? "" : "s"} ${esc(descripcion)}. Quedaron todos seleccionados y la lista muestra solo esos. Para ir de a una página, toca «☑ Solo esta página»: lee los títulos, desmarca los que no correspondan, revisa el motivo y toca «Excluir por título/resumen» (dos veces). Para salir sin excluir, «Terminar selección».</span>`;
   renderR(); $("#list-r").scrollIntoView({ block: "start" });
 }
 
@@ -426,7 +427,10 @@ function renderSugerencias() {
   });
 }
 $("#auto-crib").addEventListener("toggle", () => { if ($("#auto-crib").open) { renderSugerencias(); infoUy(); infoAgua() } });
-$("#sel-todos").onclick = () => { const todos = visiblesR.every(c => selR.has(c)); visiblesR.forEach(c => todos ? selR.delete(c) : selR.add(c)); renderR() };
+// Marcar solo los 50 de la página que se está viendo (para leer los títulos y descartar de a una página), todos los de la lista, o ninguno
+$("#sel-pagina").onclick = () => { selR = new Set(visiblesR); renderR() };
+$("#sel-todos").onclick = () => { selR = new Set(filasR); renderR() };
+$("#sel-ninguno").onclick = () => { selR.clear(); renderR() };
 $("#sel-excl").onclick = () => {
   // Solo los que están en Fase 1 (pendientes): los demás ya tienen una decisión
   const lista = [...selR].map(c => R.find(r => r.codigo === c)).filter(r => r && r.estadoK === "pend");
@@ -440,7 +444,10 @@ $("#sel-excl").onclick = () => {
   lista.forEach(r => { r.estadoK = "exta"; r.estado = estadoLabel("exta"); r.motivo = motivo; if (nota) r.notas = [r.notas, nota].filter(Boolean).join(" · "); colaCrib.push({ ...r, t: Date.now() }) });
   procesarCola();
   toast(`${lista.length} artículo${lista.length === 1 ? "" : "s"} excluido${lista.length === 1 ? "" : "s"} por título/resumen («${motivo}»). Se están guardando.`, 5000);
-  selR.clear(); if (soloIds) { soloIds = null; palabraAuto = ""; $("#auto-crib-res").hidden = true } renderR(); renderP();
+  // En el auto-cribado la lista sigue mostrando los que quedan, para seguir con la página siguiente
+  selR.clear();
+  if (soloIds) { lista.forEach(r => soloIds.delete(r.codigo)); if (!soloIds.size) { soloIds = null; palabraAuto = ""; $("#auto-crib-res").hidden = true } }
+  renderR(); renderP();
 };
 $("#sel-motivo").onchange = () => { $("#sel-otro").hidden = $("#sel-motivo").value !== "__otro" };
 // Une cada duplicado con su original (mismo DOI o mismo título)
