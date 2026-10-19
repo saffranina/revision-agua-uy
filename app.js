@@ -80,6 +80,7 @@ async function cargar(silencioso) {
 // Las decisiones que todavía están en la fila para guardarse se muestran igual (si no, al recargar parecen perdidas)
 // Una decisión en la fila vale solo si no quedó vieja: nunca hace retroceder a un artículo
 // (por ejemplo, de «Incluida» a «A texto completo») ni pisa un cambio hecho después en la planilla
+let SERVIDOR = new Map(); // estado de cada referencia en la planilla, según la última lectura
 const RANGO = { pend: 0, ft: 1, exta: 1, dup: 1, inc: 2, extc: 2, nr: 2 };
 const fechaUy = s => { const d = new Date(String(s || "").replace(" ", "T") + ":00-03:00"); return isNaN(d) ? 0 : d.getTime() };
 function vigente(x, s) {
@@ -99,6 +100,12 @@ function podarCola(refsServidor) {
   if (colaCrib.length !== antes && typeof guardarColaLocal === "function") guardarColaLocal();
   return antes - colaCrib.length;
 }
+// Lo que se acaba de guardar pasa a ser lo que dice la planilla (con la hora de ahora)
+function anotarGuardado(x) {
+  if (!x.codigo || x.doble) return;
+  const d = new Date(Date.now() - 3 * 3600000).toISOString(); // hora de Montevideo
+  SERVIDOR.set(x.codigo, { codigo: x.codigo, estado: x.estado, motivo: x.motivo, actualizado: d.slice(0, 10) + " " + d.slice(11, 16) });
+}
 function superponerPendientes() {
   const pend = new Map(colaCrib.filter(x => !x.doble && x.codigo).map(x => [x.codigo, x]));
   if (!pend.size) return;
@@ -107,7 +114,7 @@ function superponerPendientes() {
 function aplicar(j) {
   B = (j.busquedas || []).sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
   R = (j.referencias || []).map(r => ({ ...r, estadoK: estadoKey(r.estado) })).sort((a, b) => String(b.codigo).localeCompare(String(a.codigo)));
-  if (j.__servidor) podarCola(R);
+  if (j.__servidor) { SERVIDOR = new Map(R.map(r => [r.codigo, { codigo: r.codigo, estado: r.estado, motivo: r.motivo, actualizado: r.actualizado }])); podarCola(R) }
   superponerPendientes();
   H = j.historial || [];
   ACU = j.acuerdo || null;
@@ -935,12 +942,10 @@ function decidir(estado, motivo) {
 }
 async function procesarCola() {
   if (procesarCola.activo) return; procesarCola.activo = true;
-  // Antes de guardar, se compara con la planilla actual para no pisar decisiones más nuevas
-  if (colaCrib.some(x => !x.doble)) {
-    try {
-      const r = await fetch(window.API_URL, { cache: "no-store" }); const j = await r.json();
-      if (j.ok) { const quitadas = podarCola(j.referencias || []); if (quitadas) toast(`${quitadas} decisi${quitadas === 1 ? "ón vieja quedó" : "ones viejas quedaron"} sin guardar porque en la planilla esos artículos ya tienen una decisión más nueva.`, 7000) }
-    } catch (e) { procesarCola.activo = false; actualizarGuardado(); setTimeout(procesarCola, 8000); return }
+  // Antes de guardar, se compara con lo que decía la planilla al cargar (sin volver a leerla entera, que es lento)
+  if (SERVIDOR.size && colaCrib.some(x => !x.doble)) {
+    const quitadas = podarCola([...SERVIDOR.values()]);
+    if (quitadas) toast(`${quitadas} decisi${quitadas === 1 ? "ón vieja quedó" : "ones viejas quedaron"} sin guardar porque en la planilla esos artículos ya tienen una decisión más nueva.`, 7000);
   }
   while (colaCrib.length) {
     actualizarGuardado(); if (typeof guardarColaLocal === "function") guardarColaLocal();
@@ -960,7 +965,7 @@ async function procesarCola() {
       for (const x of colaCrib) { if (x.doble || lote.length >= 50) break; lote.push(x) }
       try {
         await api("guardarVarias", { referencias: lote.map(x => ({ codigo: x.codigo, estado: x.estadoK, motivo: x.motivo || "", notas: x.notas || "", tema: x.tema || "" })) });
-        colaCrib.splice(0, lote.length); continue;
+        lote.forEach(anotarGuardado); colaCrib.splice(0, lote.length); continue;
       } catch (e) {
         if (e.message === "Acción desconocida.") procesarCola.sinLote = true;
         else { toast("No se pudo guardar un grupo de decisiones: " + e.message + ". Reintento en unos segundos.", 5000); await new Promise(ok => setTimeout(ok, 5000)); continue }
@@ -969,7 +974,7 @@ async function procesarCola() {
     try {
       await api("guardarReferencia", { codigo: r.codigo, titulo: r.titulo, autores: r.autores, anio: r.anio, revista: r.revista, doi: r.doi,
         link: r.link, resumen: r.resumen, busqueda: r.busqueda, estado: r.estadoK, motivo: r.motivo, tema: r.tema, notas: r.notas, uruguay: r.uruguay });
-      colaCrib.shift();
+      anotarGuardado(r); colaCrib.shift();
     } catch (e) {
       toast("No se pudo guardar " + r.codigo + ": " + e.message + ". Reintento en unos segundos.", 5000);
       await new Promise(ok => setTimeout(ok, 5000));
@@ -977,13 +982,15 @@ async function procesarCola() {
   }
   procesarCola.activo = false; actualizarGuardado(); if (typeof guardarColaLocal === "function") guardarColaLocal();
   if (colaCrib.length) return;
-  await cargar(true); contarConflictos();
+  // Releer la planilla entera es lento: se hace recién cuando pasa un rato sin decisiones nuevas
+  clearTimeout(procesarCola.releer);
+  procesarCola.releer = setTimeout(async () => { if (colaCrib.length) return; await cargar(true); contarConflictos() }, 60000);
 }
 function actualizarGuardado() {
   $("#c-guard").textContent = colaCrib.length ? (navigator.onLine ? `Guardando ${colaCrib.length}…` : `📴 ${colaCrib.length} para guardar cuando vuelva internet`) : "✓ Todo guardado";
   const g = $("#guard-global"); if (!g) return;
   g.hidden = !colaCrib.length;
-  g.textContent = colaCrib.length ? (navigator.onLine ? `⏳ Guardando ${colaCrib.length} decisi${colaCrib.length === 1 ? "ón" : "ones"} en la planilla… no cierres la página` : `📴 ${colaCrib.length} decisiones guardadas en este dispositivo: se suben cuando vuelva internet`) : "";
+  g.textContent = colaCrib.length ? (navigator.onLine ? `⏳ Guardando ${colaCrib.length} decisi${colaCrib.length === 1 ? "ón" : "ones"} en la planilla… no cierres la página${procesarCola.sinLote && colaCrib.length > 5 ? " (de a una: actualiza el motor con «guardarVarias» para que sea mucho más rápido)" : ""}` : `📴 ${colaCrib.length} decisiones guardadas en este dispositivo: se suben cuando vuelva internet`) : "";
 }
 window.addEventListener("beforeunload", e => { if (colaCrib.length) { e.preventDefault(); e.returnValue = "" } });
 $("#crib-btn").onclick = abrirCrib;
