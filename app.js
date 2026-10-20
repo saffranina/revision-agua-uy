@@ -59,7 +59,7 @@ function proximoCodigo() { const n = R.map(r => parseInt(String(r.codigo).slice(
 /* ---------- Conexión con la planilla ---------- */
 async function cargar(silencioso) {
   if (!window.API_URL) { $("#status").textContent = "Falta conectar la planilla (ver README)."; renderAll(); return }
-  if (cargando || colaCrib.length) return; cargando = true;
+  if (cargando) return; cargando = true;
   if (!silencioso) $("#status").textContent = "Actualizando…";
   try {
     let r;
@@ -104,7 +104,7 @@ function podarCola(refsServidor) {
 function anotarGuardado(x) {
   if (!x.codigo || x.doble) return;
   const d = new Date(Date.now() - 3 * 3600000).toISOString(); // hora de Montevideo
-  SERVIDOR.set(x.codigo, { codigo: x.codigo, estado: x.estado, motivo: x.motivo, actualizado: d.slice(0, 10) + " " + d.slice(11, 16) });
+  SERVIDOR.set(x.codigo, { codigo: x.codigo, estado: x.estado, motivo: x.motivo, actualizado: d.slice(0, 10) + " " + d.slice(11, 16), local: Date.now() });
 }
 function superponerPendientes() {
   const pend = new Map(colaCrib.filter(x => !x.doble && x.codigo).map(x => [x.codigo, x]));
@@ -114,7 +114,17 @@ function superponerPendientes() {
 function aplicar(j) {
   B = (j.busquedas || []).sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
   R = (j.referencias || []).map(r => ({ ...r, estadoK: estadoKey(r.estado) })).sort((a, b) => String(b.codigo).localeCompare(String(a.codigo)));
-  if (j.__servidor) { SERVIDOR = new Map(R.map(r => [r.codigo, { codigo: r.codigo, estado: r.estado, motivo: r.motivo, actualizado: r.actualizado }])); podarCola(R) }
+  if (j.__servidor) {
+    // Lo que se guardó hace poco puede no venir todavía en esta lectura (empezó antes de guardar): se mantiene lo guardado
+    const recientes = [...SERVIDOR.values()].filter(x => x.local && Date.now() - x.local < 600000);
+    SERVIDOR = new Map(R.map(r => [r.codigo, { codigo: r.codigo, estado: r.estado, motivo: r.motivo, actualizado: r.actualizado }]));
+    recientes.forEach(x => {
+      const r = R.find(y => y.codigo === x.codigo);
+      if (!r || fechaUy(r.actualizado) > fechaUy(x.actualizado) || (r.estado === x.estado && (r.motivo || "") === (x.motivo || ""))) return;
+      Object.assign(r, { estado: x.estado, estadoK: estadoKey(x.estado), motivo: x.motivo }); SERVIDOR.set(x.codigo, x);
+    });
+    podarCola(R);
+  }
   superponerPendientes();
   H = j.historial || [];
   ACU = j.acuerdo || null;
