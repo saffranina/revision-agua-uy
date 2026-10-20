@@ -1208,6 +1208,8 @@ setModo();
 actualizarRol();
 try { const c = JSON.parse(store.get("cache") || "null"); if (c) aplicar(c); else renderAll() } catch (e) { renderAll() }
 cargar();
-document.addEventListener("visibilitychange", () => { if (!document.hidden) cargar(true) });
+// Al volver a la pestaña (por ejemplo, después de abrir un artículo en la fuente) relee la planilla como mucho cada 5 minutos
+let ultimaVuelta = Date.now();
+document.addEventListener("visibilitychange", () => { if (!document.hidden && Date.now() - ultimaVuelta > 300000) { ultimaVuelta = Date.now(); cargar(true) } });
 
 $("#r-com").onclick = () => abrirComentarios(editR);
