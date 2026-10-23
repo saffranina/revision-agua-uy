@@ -222,11 +222,13 @@ function renderEstudios() {
     const chipS = s && s.global ? `<span class="pill ${claseNivel(s.global)}">Sesgo: ${esc(s.global)}</span>` : `<span class="pill s-pend">Sin riesgo de sesgo</span>`;
     return `<div class="item nohover"><div class="top"><span class="t"><span class="meta">${esc(r.codigo)}</span> ${esc(r.titulo)}</span></div>
       <div class="meta">${esc([r.autores, r.anio].filter(Boolean).join(" · "))}${e && e.departamento ? " · " + esc(e.departamento) : ""}</div>
-      <div class="bar">${chipE}${chipS}</div>
-      ${logueado ? `<div class="bar"><button class="btn ghost" data-ext="${esc(r.codigo)}">Extraer datos</button><button class="btn ghost" data-ses="${esc(r.codigo)}">Riesgo de sesgo</button></div>` : ""}</div>`;
+      <div class="bar">${chipE}${chipS}${safeUrl(r.pdf) ? `<a class="pill s-inc" href="${esc(r.pdf)}" target="_blank" rel="noopener">PDF ↗</a>` : `<span class="pill s-pend">Sin PDF</span>`}</div>
+      ${logueado ? `<div class="bar"><button class="btn ghost" data-ext="${esc(r.codigo)}">Extraer datos</button><button class="btn ghost" data-ses="${esc(r.codigo)}">Riesgo de sesgo</button><button class="btn ghost" data-ficha="${esc(r.codigo)}" title="Subir el PDF, corregir datos o cambiar el estado (por ejemplo, excluir a texto completo)">Editar ficha / PDF</button></div>` : ""}</div>`;
   }).join("") : `<div class="empty">Cuando incluyas estudios (estado «Incluida»), aparecen aquí para extraer los datos y evaluar el riesgo de sesgo.</div>`;
   $("#est-list").querySelectorAll("[data-ext]").forEach(b => b.onclick = () => abrirExtraccion(b.dataset.ext));
   $("#est-list").querySelectorAll("[data-ses]").forEach(b => b.onclick = () => abrirSesgo(b.dataset.ses));
+  // La ficha de la referencia: ahí se sube el PDF y se cambia el estado (para excluir, «Excluida a texto completo» y el motivo)
+  $("#est-list").querySelectorAll("[data-ficha]").forEach(b => b.onclick = () => openR(b.dataset.ficha));
   $("#evidencia").innerHTML = mapaEvidencia();
   renderGrade();
   // Semáforo de riesgo de sesgo
